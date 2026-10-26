@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">Daftar Pengguna / Anggota Terdaftar</div>
+
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+        <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; color: #64748b;">
+                <th style="padding: 0.75rem 1rem;">NAMA</th>
+                <th style="padding: 0.75rem 1rem;">EMAIL</th>
+                <th style="padding: 0.75rem 1rem;">TANGGAL BERGABUNG</th>
+                <th style="padding: 0.75rem 1rem; text-align: center;">AKSI</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in pengguna_list %}
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 1rem; font-weight: 600;">{{ u.first_name }}</td>
+                <td style="padding: 1rem; color: #475569;">{{ u.email }}</td>
+                <td style="padding: 1rem; color: #64748b;">{{ u.date_joined|date:"d M Y" }}</td>
+                <td style="padding: 1rem; text-align: center;">
+                    <a href="{% url 'app:hapus_pengguna' u.id %}"
+                        onclick="return confirm('Apakah Anda yakin ingin menghapus akun ini?');"
+                        style="color: #ef4444; text-decoration: none; font-weight: 600;">Hapus</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 2rem; color: #94a3b8;">Belum ada pengguna terdaftar.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

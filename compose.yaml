@@ -1,0 +1,39 @@
+services:
+  db:
+    image: mariadb:10.11.15
+    container_name: db_MuduLab
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: GitGut#11
+      MYSQL_USER: root
+      MYSQL_PASSWORD: GitGut#11
+      MYSQL_DATABASE: db_mudulab
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3309:3306"
+    networks:
+      - thesisstore_network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: pma_MuduLab
+    restart: always
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: GitGut#11
+    ports:
+      - "8888:80"
+    networks:
+      - thesisstore_network
+
+volumes:
+  db_data:
+
+networks:
+  thesisstore_network:
+    driver: bridge

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card" style="max-width: 1000px;">
+    <div class="card-title" style="display: flex; align-items: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="8" r="5" />
+            <path d="M20 21a8 8 0 0 0-16 0" />
+        </svg>
+        <span>Profil Administrator</span>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" value="{{ request.user.username }}" disabled>
+            </div>
+            <div class="form-group">
+                <label>Nama Lengkap</label>
+                <input type="text" value="{{ request.user.first_name|default:'Admin' }}" disabled>
+            </div>
+            <div class="form-group">
+                <label>Jenis Kelamin</label>
+                {{ form.gender }}
+            </div>
+            <div class="form-group">
+                <label>No. Telepon / WA</label>
+                {{ form.telp }}
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 1rem;">
+            <label>Foto Profil</label>
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+                <div
+                    style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #eff6ff;">
+                    {% if photo %}
+                    <img src="{{ photo.url }}" alt="Photo" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                    <span style="font-weight: 800; color: #2563eb;">thesis</span>
+                    {% endif %}
+                </div>
+                <div style="flex-grow: 1;">
+                    {{ form.photo }}
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+            <button type="submit" class="btn btn-blue" style="padding: 0.8rem 1.75rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                </svg>
+                SIMPAN PROFIL
+            </button>
+            <a href="{% url 'app:dashboard' %}" class="btn btn-dark" style="padding: 0.8rem 1.75rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                </svg>
+                KEMBALI KE DASHBOARD
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

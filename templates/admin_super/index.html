@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--bg-card);
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
+    .stat-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .stat-icon svg {
+        width: 24px;
+        height: 24px;
+        stroke-width: 2;
+    }
+
+    .stat-icon.indigo {
+        background: #e0e7ff;
+        color: #4338ca;
+    }
+
+    .stat-icon.teal {
+        background: #ccfbf1;
+        color: #0f766e;
+    }
+
+    .stat-num {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+</style>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-icon indigo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+        </div>
+        <div>
+            <div class="stat-num">{{ total_pengguna }}</div>
+            <div class="stat-label">Total Anggota Terdaftar</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                <line x1="9" x2="9" y1="3" y2="18" />
+                <line x1="15" x2="15" y1="6" y2="21" />
+            </svg>
+        </div>
+        <div>
+            <div class="stat-num">{{ total_provinsi }}</div>
+            <div class="stat-label">Total Wilayah Provinsi</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Panel Administrator Utama</h3>
+        <a href="{% url 'app:profile_admin' %}" class="btn btn-outline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
+            Edit Profil Admin
+        </a>
+    </div>
+    <p style="color: var(--text-muted); line-height: 1.6; font-size: 0.95rem;">
+        Selamat datang di pusat kendali sistem. Anda memiliki hak akses untuk memantau seluruh anggota yang terdaftar di
+        sistem APBISDI serta mengelola master data wilayah provinsi melalui Django Admin.
+    </p>
+</div>
+{% endblock %}

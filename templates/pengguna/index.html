@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .welcome-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .welcome-header {
+        color: #64748b;
+        font-size: 0.95rem;
+        margin-bottom: 4px;
+    }
+
+    .user-fullname {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 2rem;
+    }
+
+    .user-details-grid {
+        display: grid;
+        grid-template-columns: 140px 1fr 1fr;
+        gap: 2rem;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .avatar-wrapper {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 4px solid #3b82f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: #eff6ff;
+    }
+
+    .avatar-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .avatar-wrapper .placeholder-logo {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #2563eb;
+    }
+
+    .info-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .info-group .label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #94a3b8;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .info-group .val {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .btn-edit-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.65rem 1.5rem;
+        background: #475569;
+        color: #ffffff;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .btn-edit-pill:hover {
+        background: #334155;
+    }
+</style>
+
+<div class="welcome-card">
+    <div class="welcome-header">Selamat Datang</div>
+    <h2 class="user-fullname">{{ userdetail.user.first_name }} {{ userdetail.user.last_name }}</h2>
+
+    <div class="user-details-grid">
+        <div class="avatar-wrapper">
+            {% if photo %}
+            <img src="{{ photo.url }}" alt="Avatar">
+            {% else %}
+            <div class="placeholder-logo">thesis</div>
+            {% endif %}
+        </div>
+
+        <div class="info-column">
+            <div class="info-group">
+                <div class="label">EMAIL</div>
+                <div class="val">{{ userdetail.user.email }}</div>
+            </div>
+            <div class="info-group">
+                <div class="label">JENIS KELAMIN</div>
+                <div class="val">{{ userdetail.gender|default:"-" }}</div>
+            </div>
+        </div>
+
+        <div class="info-column">
+            <div class="info-group">
+                <div class="label">NO. TELEPON / WHATSAPP</div>
+                <div class="val">{{ userdetail.telp|default:"-" }}</div>
+            </div>
+            <div class="info-group">
+                <div class="label">ALAMAT DOMISILI</div>
+                <div class="val">{{ userdetail.alamat|default:"-" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <a href="{% url 'app:profile_pengguna' %}" class="btn-edit-pill">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="8" r="5" />
+                <path d="M20 21a8 8 0 0 0-16 0" />
+            </svg>
+            <span>Edit Profil</span>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">Tautan Profil Ilmiah & Publikasi</div>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        {% if userdetail.link_sinta %}<a href="{{ userdetail.link_sinta }}" target="_blank" class="btn btn-blue">SINTA
+            ↗</a>{% endif %}
+        {% if userdetail.link_scopus %}<a href="{{ userdetail.link_scopus }}" target="_blank"
+            class="btn btn-blue">Scopus ↗</a>{% endif %}
+        {% if userdetail.link_google_scholar %}<a href="{{ userdetail.link_google_scholar }}" target="_blank"
+            class="btn btn-blue">Google Scholar ↗</a>{% endif %}
+        {% if userdetail.link_orcid %}<a href="{{ userdetail.link_orcid }}" target="_blank" class="btn btn-blue">ORCID
+            ↗</a>{% endif %}
+    </div>
+</div>
+{% endblock %}
