@@ -20,15 +20,15 @@ def loginView(request):
 
         if user:
             login(request, user)
-            messages.success(request, 'Selamat Datang!')
+            messages.success(request, f'Selamat datang kembali, {user.first_name}!')
             return redirect('app:dashboard')
 
-        messages.warning(request, 'Email atau password salah.')
+        messages.warning(request, 'Email atau password salah. Silakan coba lagi.')
         return redirect('login')
 
     return render(request, 'login.html', {
-        'title': 'Login',
-        'heading': 'Login',
+        'title': 'Masuk - ModuLab E-Commerce',
+        'heading': 'Masuk ke Akun ModuLab',
     })
 
 def registerView(request):
@@ -41,8 +41,9 @@ def registerView(request):
         password = request.POST.get('password', '')
         confirm = request.POST.get('confirm_password', '')
 
-        # Validasi 1 Email hanya untuk 1 akun
-        if confirm != password:
+        if not name or not email or not password:
+            messages.warning(request, 'Mohon lengkapi semua kolom pendaftaran.')
+        elif confirm != password:
             messages.warning(request, 'Password dan konfirmasi password tidak cocok.')
         elif User.objects.filter(email=email).exists() or User.objects.filter(username=email).exists():
             messages.warning(request, 'Email ini sudah terdaftar! Gunakan email lain.')
@@ -54,18 +55,19 @@ def registerView(request):
                 first_name=name,
                 last_name='Pengguna',
             )
-            # Hubungkan langsung ke tabel UserPengguna
+            # Otomatis buat profil UserPengguna terhubung
             UserPengguna.objects.create(
                 user=new_user,
                 telp='',
+                alamat='',
                 link_sinta=''
             )
-            messages.success(request, 'Registrasi berhasil! Silakan login dengan akun Anda.')
+            messages.success(request, 'Akun ModuLab berhasil dibuat! Silakan masuk.')
             return redirect('login')
 
     return render(request, 'register.html', {
-        'title': 'Register - Thesis Edu',
-        'heading': 'Pendaftaran Akun',
+        'title': 'Daftar Akun - ModuLab E-Commerce',
+        'heading': 'Buat Akun ModuLab',
     })
 
 @login_required

@@ -2,156 +2,323 @@
 
 {% block content %}
 <style>
-    .welcome-card {
-        background: #ffffff;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
+    .customer-hero-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--border-color);
         padding: 2.5rem;
+        box-shadow: var(--shadow-card);
         margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
     }
 
-    .welcome-header {
-        color: #64748b;
-        font-size: 0.95rem;
-        margin-bottom: 4px;
-    }
-
-    .user-fullname {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #1e293b;
-        margin-bottom: 2rem;
-    }
-
-    .user-details-grid {
-        display: grid;
-        grid-template-columns: 140px 1fr 1fr;
-        gap: 2rem;
-        align-items: center;
-        margin-bottom: 2rem;
-    }
-
-    .avatar-wrapper {
-        width: 120px;
-        height: 120px;
+    .customer-hero-card::after {
+        content: '';
+        position: absolute;
+        top: -40px;
+        right: -40px;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, rgba(79, 70, 229, 0.08) 0%, transparent 70%);
         border-radius: 50%;
-        border: 4px solid #3b82f6;
+        pointer-events: none;
+    }
+
+    .hero-top-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .customer-tier-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f1f5f9;
+        color: #475569;
+        padding: 6px 14px;
+        border-radius: 99px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid #e2e8f0;
+    }
+
+    .badge-verified {
+        background: #ecfdf5;
+        color: #059669;
+        border-color: #a7f3d0;
+    }
+
+    .customer-main-profile {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .customer-avatar-xl {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        border: 4px solid #ffffff;
+        box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.2);
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #ffffff;
         overflow: hidden;
-        background: #eff6ff;
+        flex-shrink: 0;
     }
 
-    .avatar-wrapper img {
+    .customer-avatar-xl img {
         width: 100%;
         height: 100%;
         object-fit: cover;
     }
 
-    .avatar-wrapper .placeholder-logo {
-        font-size: 1.75rem;
-        font-weight: 800;
-        color: #2563eb;
+    .customer-info-content {
+        flex-grow: 1;
     }
 
-    .info-column {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-
-    .info-group .label {
-        font-size: 0.75rem;
+    .customer-greeting {
+        font-size: 0.875rem;
         font-weight: 700;
-        color: #94a3b8;
-        letter-spacing: 0.5px;
+        color: var(--primary);
         text-transform: uppercase;
+        letter-spacing: 0.8px;
         margin-bottom: 4px;
     }
 
-    .info-group .val {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: #1e293b;
+    .customer-name {
+        font-size: 1.85rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.5px;
+        line-height: 1.2;
+        margin-bottom: 8px;
     }
 
-    .btn-edit-pill {
-        display: inline-flex;
+    .customer-subtext {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        display: flex;
         align-items: center;
         gap: 8px;
-        padding: 0.65rem 1.5rem;
-        background: #475569;
-        color: #ffffff;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 0.9rem;
     }
 
-    .btn-edit-pill:hover {
-        background: #334155;
+    /* Grid Information Cards */
+    .ecommerce-data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-tile {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-subtle);
+        transition: var(--transition);
+    }
+
+    .info-tile:hover {
+        border-color: var(--border-focus);
+        box-shadow: var(--shadow-card);
+        transform: translateY(-2px);
+    }
+
+    .tile-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .tile-icon-box {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        background: var(--primary-light);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .tile-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-heading);
+    }
+
+    .tile-row {
+        margin-bottom: 1rem;
+    }
+
+    .tile-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .tile-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #94a3b8;
+        letter-spacing: 0.5px;
+        margin-bottom: 3px;
+    }
+
+    .tile-val {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1e293b;
+        word-break: break-word;
+    }
+
+    /* Shipping Banner */
+    .shipping-promo-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        color: #ffffff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+    }
+
+    .promo-content h3 {
+        font-size: 1.2rem;
+        font-weight: 800;
+        margin-bottom: 6px;
+        color: #ffffff;
+    }
+
+    .promo-content p {
+        font-size: 0.875rem;
+        color: #94a3b8;
+        max-width: 550px;
+        line-height: 1.5;
     }
 </style>
 
-<div class="welcome-card">
-    <div class="welcome-header">Selamat Datang</div>
-    <h2 class="user-fullname">{{ userdetail.user.first_name }} {{ userdetail.user.last_name }}</h2>
+<!-- Customer Profile Header Card -->
+<div class="customer-hero-card">
+    <div class="hero-top-meta">
+        <div class="customer-tier-badge {% if is_complete %}badge-verified{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+            <span>{% if is_complete %}Member Terverifikasi & Lengkap{% else %}Profil Perlu Dilengkapi{% endif %}</span>
+        </div>
+        <div style="font-size: 0.8rem; color: #64748b; font-weight: 600;">
+            ID Pelanggan: <strong style="color: #0f172a;">#ML-{{ userdetail.user.id|stringformat:"05d" }}</strong>
+        </div>
+    </div>
 
-    <div class="user-details-grid">
-        <div class="avatar-wrapper">
+    <div class="customer-main-profile">
+        <div class="customer-avatar-xl">
             {% if photo %}
-            <img src="{{ photo.url }}" alt="Avatar">
+                <img src="{{ photo.url }}" alt="Avatar">
             {% else %}
-            <div class="placeholder-logo">thesis</div>
+                {{ userdetail.user.first_name|default:request.user.username|slice:":1"|upper }}
             {% endif %}
         </div>
 
-        <div class="info-column">
-            <div class="info-group">
-                <div class="label">EMAIL</div>
-                <div class="val">{{ userdetail.user.email }}</div>
-            </div>
-            <div class="info-group">
-                <div class="label">JENIS KELAMIN</div>
-                <div class="val">{{ userdetail.gender|default:"-" }}</div>
+        <div class="customer-info-content">
+            <div class="customer-greeting">Selamat Datang di ModuLab</div>
+            <h2 class="customer-name">{{ userdetail.user.first_name }} {{ userdetail.user.last_name }}</h2>
+            <div class="customer-subtext">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <span>{{ userdetail.user.email }}</span>
+                &bull;
+                <span>Bergabung: {{ request.user.date_joined|date:"d M Y" }}</span>
             </div>
         </div>
 
-        <div class="info-column">
-            <div class="info-group">
-                <div class="label">NO. TELEPON / WHATSAPP</div>
-                <div class="val">{{ userdetail.telp|default:"-" }}</div>
-            </div>
-            <div class="info-group">
-                <div class="label">ALAMAT DOMISILI</div>
-                <div class="val">{{ userdetail.alamat|default:"-" }}</div>
-            </div>
+        <div>
+            <a href="{% url 'app:profile_pengguna' %}" class="btn-modern btn-primary-m">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                <span>Ubah Biodata & Alamat</span>
+            </a>
         </div>
-    </div>
-
-    <div>
-        <a href="{% url 'app:profile_pengguna' %}" class="btn-edit-pill">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="8" r="5" />
-                <path d="M20 21a8 8 0 0 0-16 0" />
-            </svg>
-            <span>Edit Profil</span>
-        </a>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-title">Tautan Profil Ilmiah & Publikasi</div>
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-        {% if userdetail.link_sinta %}<a href="{{ userdetail.link_sinta }}" target="_blank" class="btn btn-blue">SINTA
-            ↗</a>{% endif %}
-        {% if userdetail.link_scopus %}<a href="{{ userdetail.link_scopus }}" target="_blank"
-            class="btn btn-blue">Scopus ↗</a>{% endif %}
-        {% if userdetail.link_google_scholar %}<a href="{{ userdetail.link_google_scholar }}" target="_blank"
-            class="btn btn-blue">Google Scholar ↗</a>{% endif %}
-        {% if userdetail.link_orcid %}<a href="{{ userdetail.link_orcid }}" target="_blank" class="btn btn-blue">ORCID
-            ↗</a>{% endif %}
+<!-- E-Commerce Data Grid -->
+<div class="ecommerce-data-grid">
+    <!-- Tile 1: Informasi Kontak -->
+    <div class="info-tile">
+        <div class="tile-header">
+            <div class="tile-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </div>
+            <div class="tile-title">Kontak & Pribadi</div>
+        </div>
+
+        <div class="tile-row">
+            <div class="tile-label">Nomor WhatsApp / HP</div>
+            <div class="tile-val">{{ userdetail.telp|default:"Belum diisi" }}</div>
+        </div>
+
+        <div class="tile-row">
+            <div class="tile-label">Jenis Kelamin</div>
+            <div class="tile-val">{{ userdetail.gender|default:"Belum dipilih" }}</div>
+        </div>
+
+        <div class="tile-row">
+            <div class="tile-label">Status Akun</div>
+            <div class="tile-val" style="color: #059669;">Aktif & Terdaftar</div>
+        </div>
+    </div>
+
+    <!-- Tile 2: Alamat Pengiriman E-Commerce -->
+    <div class="info-tile">
+        <div class="tile-header">
+            <div class="tile-icon-box" style="background: #e0f2fe; color: #0284c7;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="tile-title">Alamat Pengiriman Utama</div>
+        </div>
+
+        <div class="tile-row">
+            <div class="tile-label">Provinsi Tujuan</div>
+            <div class="tile-val">{{ userdetail.provinsi_anggota.nama_provinsi|default:"Belum ditentukan" }}</div>
+        </div>
+
+        <div class="tile-row">
+            <div class="tile-label">Alamat Lengkap Pengiriman</div>
+            <div class="tile-val">{{ userdetail.alamat|default:"Belum mengisi alamat pengiriman." }}</div>
+        </div>
+
+        <div class="tile-row">
+            <div class="tile-label">Kurir Support</div>
+            <div class="tile-val" style="color: #64748b; font-size: 0.85rem;">JNE, J&T, SiCepat, Pos Indonesia</div>
+        </div>
+    </div>
+</div>
+
+<!-- Shipping Promo Banner -->
+<div class="shipping-promo-banner">
+    <div class="promo-content">
+        <h3>Nikmati Pengiriman Cepat & Promo ModuLab</h3>
+        <p>Pastikan alamat pengiriman dan nomor WhatsApp Anda selalu aktif untuk kemudahan konfirmasi pesanan dan pelacakan resi belanja online Anda.</p>
+    </div>
+    <div>
+        <a href="{% url 'app:profile_pengguna' %}" class="btn-modern btn-secondary-m">
+            <span>Perbarui Alamat Pengiriman</span>
+        </a>
     </div>
 </div>
 {% endblock %}

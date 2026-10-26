@@ -1,207 +1,215 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Academy Thesis Edu</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
+    <title>{{ title|default:"Daftar Akun - ModuLab E-Commerce" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            background-color: #f1f5f9;
+            background: radial-gradient(circle at 10% 20%, rgb(240, 244, 255) 0%, rgb(248, 250, 252) 90%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 1.5rem;
+            color: #1e293b;
         }
 
-        .card-register {
-            background: #ffffff;
-            border-radius: 16px;
-            padding: 2.5rem;
+        .auth-wrapper {
             width: 100%;
-            max-width: 440px;
-            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.05);
+            max-width: 460px;
+        }
+
+        .auth-card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 2.75rem 2.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 20px 40px -10px rgba(79, 70, 229, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03);
             text-align: center;
         }
 
-        .brand-logo {
+        .brand-badge-box {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            margin-bottom: 0.5rem;
-        }
-
-        .brand-logo .t {
-            font-size: 2.2rem;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            color: #ffffff;
+            font-size: 1.5rem;
             font-weight: 800;
-            color: #6366f1;
-            line-height: 1;
+            border-radius: 16px;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
         }
 
-        .brand-logo .text {
-            font-size: 1.7rem;
-            font-weight: 700;
-            color: #2563eb;
+        .auth-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.35rem;
         }
 
-        .subtitle {
-            font-size: 0.85rem;
+        .auth-subtitle {
+            font-size: 0.875rem;
             color: #64748b;
             margin-bottom: 2rem;
         }
 
         .input-group {
             position: relative;
-            margin-bottom: 1rem;
+            margin-bottom: 1.15rem;
             text-align: left;
         }
 
-        .input-group svg {
+        .input-icon {
             position: absolute;
             left: 14px;
             top: 50%;
             transform: translateY(-50%);
-            width: 18px;
-            height: 18px;
             color: #94a3b8;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
         }
 
-        .input-group input {
+        .input-field {
             width: 100%;
-            padding: 0.85rem 1rem 0.85rem 42px;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            color: #1e293b;
+            padding: 0.85rem 1rem 0.85rem 44px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 0.925rem;
+            color: #0f172a;
+            background: #f8fafc;
+            transition: all 0.2s ease;
         }
 
-        .input-group input:focus {
+        .input-field:focus {
             outline: none;
-            border-color: #8b5cf6;
+            border-color: #4f46e5;
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
         }
 
-        .btn-register {
+        .btn-submit {
             width: 100%;
-            padding: 0.85rem;
-            background: #8b5cf6;
+            padding: 0.9rem;
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
             color: #ffffff;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 0.95rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            margin-top: 1rem;
-            transition: background 0.2s;
+            margin-top: 1.25rem;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+            transition: all 0.2s ease;
         }
 
-        .btn-register:hover {
-            background: #7c3aed;
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
         }
 
-        .footer-link {
-            margin-top: 1.5rem;
-            font-size: 0.85rem;
+        .auth-footer {
+            margin-top: 1.75rem;
+            font-size: 0.875rem;
             color: #64748b;
         }
 
-        .footer-link a {
-            color: #3b82f6;
+        .auth-footer a {
+            color: #4f46e5;
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
         }
 
-        .copyright {
-            margin-top: 2rem;
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .alert-box {
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.25rem;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+        .alert-warning { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+        .copyright-text {
+            text-align: center;
             font-size: 0.75rem;
             color: #94a3b8;
-        }
-
-        .alert {
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            font-size: 0.85rem;
-        }
-
-        .alert-warning {
-            background: #fffbeb;
-            color: #b45309;
+            margin-top: 1.5rem;
         }
     </style>
 </head>
-
 <body>
-    <div class="card-register">
-        <div class="brand-logo">
-            <span class="t">T</span>
-            <span class="text">hesisedu</span>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <div class="brand-badge-box">M</div>
+            <h2 class="auth-title">Daftar Akun Baru</h2>
+            <p class="auth-subtitle">Buat akun pelanggan di ModuLab E-Commerce</p>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert-box alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+                <div class="input-group">
+                    <span class="input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                    </span>
+                    <input type="text" name="first_name" class="input-field" placeholder="Nama Lengkap Anda" required autofocus>
+                </div>
+
+                <div class="input-group">
+                    <span class="input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </span>
+                    <input type="email" name="email" class="input-field" placeholder="Alamat Email (1 akun per email)" required>
+                </div>
+
+                <div class="input-group">
+                    <span class="input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </span>
+                    <input type="password" name="password" class="input-field" placeholder="Kata Sandi Baru" required>
+                </div>
+
+                <div class="input-group">
+                    <span class="input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </span>
+                    <input type="password" name="confirm_password" class="input-field" placeholder="Ulangi Kata Sandi" required>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <span>Daftar Akun Pelanggan</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                Sudah memiliki akun? <a href="{% url 'login' %}">Masuk di sini</a>
+            </div>
         </div>
-        <div class="subtitle">Register untuk mengakses Academy Thesis Edu</div>
-
-        {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-        {% endif %}
-
-        <form method="POST">
-            {% csrf_token %}
-            <div class="input-group">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="8" r="5" />
-                    <path d="M20 21a8 8 0 0 0-16 0" />
-                </svg>
-                <input type="text" name="first_name" placeholder="Nama Lengkap" required>
-            </div>
-            <div class="input-group">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect width="20" height="16" x="2" y="4" rx="2" />
-                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                </svg>
-                <input type="email" name="email" placeholder="Email (digunakan untuk login)" required>
-            </div>
-            <div class="input-group">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <input type="password" name="password" placeholder="Password" required>
-            </div>
-            <div class="input-group">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <input type="password" name="confirm_password" placeholder="Konfirmasi Password" required>
-            </div>
-            <button type="submit" class="btn-register">
-                <span>Daftar Akun</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                </svg>
-            </button>
-        </form>
-
-        <div class="footer-link">
-            Sudah punya akun? <a href="{% url 'login' %}">Login di sini</a>
-        </div>
-        <div class="copyright">&copy; 2026 Thesis Edukasi Nusantara.</div>
+        <div class="copyright-text">&copy; 2026 ModuLab E-Commerce Official. All rights reserved.</div>
     </div>
 </body>
-
 </html>

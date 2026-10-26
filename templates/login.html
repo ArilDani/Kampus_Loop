@@ -1,115 +1,127 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Masuk - MuduLab</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
+    <title>{{ title|default:"Masuk - ModuLab E-Commerce" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            background: radial-gradient(circle at 10% 20%, rgb(240, 244, 255) 0%, rgb(248, 250, 252) 90%);
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
             padding: 1.5rem;
+            color: #1e293b;
+        }
+
+        .auth-wrapper {
+            width: 100%;
+            max-width: 440px;
         }
 
         .auth-card {
             background: #ffffff;
-            border-radius: 20px;
-            padding: 2.75rem;
-            width: 100%;
-            max-width: 440px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+            border-radius: 24px;
+            padding: 2.75rem 2.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 20px 40px -10px rgba(79, 70, 229, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03);
+            text-align: center;
         }
 
-        .auth-header {
-            text-align: center;
+        .brand-badge-box {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: 800;
+            border-radius: 16px;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
+        }
+
+        .auth-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.35rem;
+        }
+
+        .auth-subtitle {
+            font-size: 0.875rem;
+            color: #64748b;
             margin-bottom: 2rem;
         }
 
-        .auth-logo {
-            width: 48px;
-            height: 48px;
-            background: #4f46e5;
-            color: white;
-            border-radius: 14px;
+        .input-group {
+            position: relative;
+            margin-bottom: 1.25rem;
+            text-align: left;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin: 0 auto 1rem auto;
         }
 
-        .auth-header h2 {
-            font-size: 1.5rem;
-            color: #0f172a;
-            font-weight: 700;
-        }
-
-        .auth-header p {
-            font-size: 0.875rem;
-            color: #64748b;
-            margin-top: 4px;
-        }
-
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #334155;
-            margin-bottom: 6px;
-        }
-
-        .form-control {
+        .input-field {
             width: 100%;
-            padding: 0.8rem 1rem;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
+            padding: 0.85rem 1rem 0.85rem 44px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
             font-size: 0.925rem;
+            color: #0f172a;
+            background: #f8fafc;
+            transition: all 0.2s ease;
         }
 
-        .form-control:focus {
+        .input-field:focus {
             outline: none;
             border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
         }
 
         .btn-submit {
             width: 100%;
-            padding: 0.85rem;
-            background: #4f46e5;
+            padding: 0.9rem;
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
             color: #ffffff;
             border: none;
-            border-radius: 10px;
-            font-weight: 600;
+            border-radius: 12px;
             font-size: 0.95rem;
+            font-weight: 700;
             cursor: pointer;
-            margin-top: 0.5rem;
-            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 1.25rem;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+            transition: all 0.2s ease;
         }
 
         .btn-submit:hover {
-            background: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
         }
 
         .auth-footer {
-            text-align: center;
             margin-top: 1.75rem;
             font-size: 0.875rem;
             color: #64748b;
@@ -117,63 +129,73 @@
 
         .auth-footer a {
             color: #4f46e5;
-            font-weight: 600;
             text-decoration: none;
+            font-weight: 700;
         }
 
-        .alert {
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .alert-box {
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
             margin-bottom: 1.25rem;
-            font-size: 0.875rem;
+            font-size: 0.85rem;
+            text-align: left;
         }
+        .alert-warning { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-        .alert-warning,
-        .alert-error {
-            background: #fef2f2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-
-        .alert-success {
-            background: #ecfdf5;
-            color: #065f46;
-            border: 1px solid #a7f3d0;
+        .copyright-text {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 1.5rem;
         }
     </style>
 </head>
-
 <body>
-    <div class="auth-card">
-        <div class="auth-header">
-            <div class="auth-logo">M</div>
-            <h2>Selamat Datang</h2>
-            <p>Silakan masuk ke akun Anda</p>
-        </div>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <div class="brand-badge-box">M</div>
+            <h2 class="auth-title">ModuLab E-Commerce</h2>
+            <p class="auth-subtitle">Masuk untuk mengakses dasbor akun Anda</p>
 
-        {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-        {% endif %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert-box alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
 
-        <form method="POST">
-            {% csrf_token %}
-            <div class="form-group">
-                <label>Alamat Email</label>
-                <input type="email" name="email" class="form-control" placeholder="nama@email.com" required autofocus>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="input-group">
+                    <span class="input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </span>
+                    <input type="email" name="email" class="input-field" placeholder="Alamat Email (contoh@email.com)" required autofocus>
+                </div>
+
+                <div class="input-group">
+                    <span class="input-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </span>
+                    <input type="password" name="password" class="input-field" placeholder="Kata Sandi / Password" required>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <span>Masuk ke Akun</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                Belum memiliki akun? <a href="{% url 'register' %}">Daftar sekarang</a>
             </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-            </div>
-            <button type="submit" class="btn-submit">Masuk</button>
-        </form>
-
-        <div class="auth-footer">
-            Belum memiliki akun? <a href="{% url 'register' %}">Daftar sekarang</a>
         </div>
+        <div class="copyright-text">&copy; 2026 ModuLab E-Commerce Official. All rights reserved.</div>
     </div>
 </body>
-
 </html>

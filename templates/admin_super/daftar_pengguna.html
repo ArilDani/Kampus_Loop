@@ -1,37 +1,286 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
-    <div class="card-title">Daftar Pengguna / Anggota Terdaftar</div>
+<style>
+    .management-header-card {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.75rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
 
-    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
-        <thead>
-            <tr style="border-bottom: 2px solid #e2e8f0; color: #64748b;">
-                <th style="padding: 0.75rem 1rem;">NAMA</th>
-                <th style="padding: 0.75rem 1rem;">EMAIL</th>
-                <th style="padding: 0.75rem 1rem;">TANGGAL BERGABUNG</th>
-                <th style="padding: 0.75rem 1rem; text-align: center;">AKSI</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in pengguna_list %}
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 1rem; font-weight: 600;">{{ u.first_name }}</td>
-                <td style="padding: 1rem; color: #475569;">{{ u.email }}</td>
-                <td style="padding: 1rem; color: #64748b;">{{ u.date_joined|date:"d M Y" }}</td>
-                <td style="padding: 1rem; text-align: center;">
-                    <a href="{% url 'app:hapus_pengguna' u.id %}"
-                        onclick="return confirm('Apakah Anda yakin ingin menghapus akun ini?');"
-                        style="color: #ef4444; text-decoration: none; font-weight: 600;">Hapus</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4" style="text-align: center; padding: 2rem; color: #94a3b8;">Belum ada pengguna terdaftar.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    .management-title-group h2 {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        letter-spacing: -0.3px;
+    }
+
+    .management-title-group p {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .search-box-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 0.75rem 1rem 0.75rem 46px; /* 46px ensures search icon never overlaps 'Cari...' */
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        color: var(--text-heading);
+        background: #f8fafc;
+        transition: var(--transition);
+        box-sizing: border-box;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: #ffffff;
+        box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        pointer-events: none;
+        width: 18px;
+        height: 18px;
+    }
+
+    .badge-count {
+        background: var(--primary-light);
+        color: var(--primary);
+        padding: 4px 10px;
+        border-radius: 99px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .table-container {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .table-responsive {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        display: block;
+    }
+
+    .user-table {
+        width: 100%;
+        min-width: 820px;
+        border-collapse: separate;
+        border-spacing: 0;
+        text-align: left;
+    }
+
+    .user-table th {
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        padding: 1rem 1.25rem;
+        border-bottom: 1.5px solid var(--border-color);
+        white-space: nowrap;
+    }
+
+    .user-table td {
+        padding: 1.15rem 1.25rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.875rem;
+        color: #334155;
+        vertical-align: middle;
+    }
+
+    .user-table tr:hover td {
+        background: #fafafa;
+    }
+
+    .customer-info-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        white-space: nowrap;
+    }
+
+    .customer-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: #ffffff;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+    }
+
+    .btn-delete-user {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        background: #fee2e2;
+        color: #b91c1c;
+        border-radius: var(--radius-sm);
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 700;
+        transition: var(--transition);
+        border: 1px solid #fecaca;
+        white-space: nowrap;
+    }
+
+    .btn-delete-user:hover {
+        background: #ef4444;
+        color: #ffffff;
+        border-color: #ef4444;
+    }
+
+    .td-action {
+        text-align: center;
+        white-space: nowrap;
+        padding-right: 1.75rem !important;
+        min-width: 110px;
+    }
+</style>
+
+<!-- Header & Live Search Bar -->
+<div class="management-header-card">
+    <div class="management-title-group">
+        <h2>
+            <span>Daftar Pelanggan ModuLab</span>
+            <span class="badge-count">{{ total_customers }} Pelanggan</span>
+        </h2>
+        <p>Manajemen data pengguna dan akun pembeli terdaftar di sistem e-commerce.</p>
+    </div>
+
+    <!-- Live Interactive Search Box -->
+    <div class="search-box-wrapper">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="userSearchInput" class="search-input" placeholder="Cari nama, email, atau no. HP..." onkeyup="filterUserTable()">
+    </div>
 </div>
+
+<!-- Table of Customers -->
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="user-table" id="customersTable">
+            <thead>
+                <tr>
+                    <th style="min-width: 180px;">Pelanggan</th>
+                    <th style="min-width: 200px;">Email</th>
+                    <th style="min-width: 120px;">WhatsApp / Telp</th>
+                    <th style="min-width: 150px;">Provinsi Pengiriman</th>
+                    <th style="min-width: 180px;">Alamat Pengiriman</th>
+                    <th style="min-width: 120px;">Tgl Bergabung</th>
+                    <th class="td-action">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in pengguna_list %}
+                    <tr class="user-row">
+                        <td>
+                            <div class="customer-info-cell">
+                                <div class="customer-avatar">
+                                    {{ u.first_name|default:u.username|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <strong style="color: #0f172a; display: block;" class="user-name">{{ u.first_name }}</strong>
+                                    <span style="font-size: 0.75rem; color: #64748b;">ID: #ML-{{ u.id|stringformat:"04d" }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="user-email" style="color: #4338ca; font-weight: 500; white-space: nowrap;">{{ u.email }}</td>
+                        <td class="user-phone" style="white-space: nowrap;">{{ u.anggota.telp|default:"-" }}</td>
+                        <td style="white-space: nowrap;">
+                            {% if u.anggota.provinsi_anggota %}
+                                <span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">
+                                    {{ u.anggota.provinsi_anggota.nama_provinsi }}
+                                </span>
+                            {% else %}
+                                <span style="color: #94a3b8; font-size: 0.85rem;">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 220px; color: #64748b; font-size: 0.85rem; line-height: 1.4; word-break: break-word;">
+                            {{ u.anggota.alamat|default:"-" }}
+                        </td>
+                        <td style="color: #64748b; font-size: 0.85rem; white-space: nowrap;">
+                            {{ u.date_joined|date:"d M Y" }}
+                        </td>
+                        <td class="td-action">
+                            <a href="{% url 'app:hapus_pengguna' u.id %}" 
+                               class="btn-delete-user"
+                               onclick="return confirm('Apakah Anda yakin ingin menghapus pelanggan {{ u.first_name }} ({{ u.email }})? Data terkait akan dihapus secara permanen.');">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                <span>Hapus</span>
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 3rem; color: #94a3b8;">
+                            Belum ada akun pengguna/pelanggan yang terdaftar.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Live interactive filter for customer table
+    function filterUserTable() {
+        const input = document.getElementById("userSearchInput");
+        const filter = input.value.toLowerCase();
+        const rows = document.querySelectorAll(".user-row");
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(filter)) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+</script>
 {% endblock %}

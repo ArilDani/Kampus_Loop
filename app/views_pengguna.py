@@ -9,6 +9,9 @@ from .models import UserPengguna
 @login_required
 def profile_pengguna(request):
     userpengguna = UserPengguna.objects.filter(user=request.user).first()
+    if not userpengguna:
+        userpengguna = UserPengguna.objects.create(user=request.user, telp='', alamat='', link_sinta='')
+
     if request.method == 'POST':
         form = formProfile(request.POST, request.FILES, instance=userpengguna)
         if form.is_valid():
@@ -16,7 +19,7 @@ def profile_pengguna(request):
             pengguna.user = request.user
             pengguna.save()
 
-            messages.success(request, 'Data pengguna berhasil disimpan!')
+            messages.success(request, 'Biodata dan alamat pengiriman berhasil disimpan!')
             return redirect('app:profile_pengguna')
 
         else:
@@ -25,8 +28,8 @@ def profile_pengguna(request):
         form = formProfile(instance=userpengguna)
 
     context = {
-        'title': 'Profil Pengguna',
-        'heading': 'Profil Pengguna APBISDI',
+        'title': 'Edit Profil - ModuLab',
+        'heading': 'Profil Pengguna E-Commerce',
         'userpengguna': userpengguna,
         'photo': userpengguna.photo if userpengguna and userpengguna.photo else None,
         'form': form,
