@@ -1,6 +1,6 @@
 from django import forms
 from django.utils import timezone
-from .models import (UserAdmin, Provinsi)
+from .models import UserAdmin
 
 class formProfile(forms.ModelForm):
     class Meta:

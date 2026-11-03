@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.utils import timezone
-from .models import UserAdmin, UserPengguna, Provinsi, PengaturanToko
+from .models import UserAdmin, UserPengguna, Produk, PengaturanToko
 
 
 @login_required
@@ -34,16 +34,16 @@ def index(request):
 
         userC = UserAdmin.objects.filter(username=request.user).first()
         total_pengguna = UserPengguna.objects.count()
-        total_provinsi = Provinsi.objects.count()
+        total_produk = Produk.objects.count()
         recent_users = User.objects.filter(last_name='Pengguna').select_related('anggota').order_by('-date_joined')[:5]
 
         context = {
-            'title': 'Dashboard Admin - ModuLab',
-            'heading': 'Dashboard Admin E-Commerce',
+            'title': 'Dashboard Admin - KampusLoop',
+            'heading': 'Dashboard Admin Marketplace',
             'photo': userC.photo if userC and userC.photo else None,
             'userdetail': userC if userC else None,
             'total_pengguna': total_pengguna,
-            'total_provinsi': total_provinsi,
+            'total_provinsi': total_produk,
             'recent_users': recent_users,
             'settings': settings,
             'today': today,
@@ -54,13 +54,13 @@ def index(request):
     else:
         userC = UserPengguna.objects.filter(user=request.user).first()
         if not userC:
-            userC = UserPengguna.objects.create(user=request.user, telp='', alamat='', link_sinta='')
+            userC = UserPengguna.objects.create(user=request.user, telp='', alamat='')
 
-        is_complete = bool(userC.telp and userC.alamat and userC.provinsi_anggota)
+        is_complete = bool(userC.telp and userC.alamat)
 
         context = {
-            'title': 'Profil Saya - ModuLab E-Commerce',
-            'heading': 'Profile User E-Commerce',
+            'title': 'Profil Saya - KampusLoop',
+            'heading': 'Profile User KampusLoop',
             'photo': userC.photo if userC and userC.photo else None,
             'userdetail': userC,
             'is_complete': is_complete,
