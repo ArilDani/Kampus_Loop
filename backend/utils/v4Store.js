@@ -1,7 +1,12 @@
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const BUNDLED_DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'kampusloop-data')
+  : BUNDLED_DATA_DIR;
+const BUNDLED_STORE_PATH = path.join(BUNDLED_DATA_DIR, 'v4_store.json');
 const STORE_PATH = path.join(DATA_DIR, 'v4_store.json');
 
 const EMPTY_STORE = {
@@ -15,10 +20,13 @@ const EMPTY_STORE = {
 
 function readStore() {
   try {
-    if (!fs.existsSync(STORE_PATH)) {
+    const readPath = fs.existsSync(STORE_PATH)
+      ? STORE_PATH
+      : (fs.existsSync(BUNDLED_STORE_PATH) ? BUNDLED_STORE_PATH : null);
+    if (!readPath) {
       return { ...EMPTY_STORE };
     }
-    const raw = fs.readFileSync(STORE_PATH, 'utf8');
+    const raw = fs.readFileSync(readPath, 'utf8');
     const parsed = JSON.parse(raw);
     return {
       sitePaymentConfig: parsed.sitePaymentConfig || null,

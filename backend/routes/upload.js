@@ -86,7 +86,13 @@ router.post('/', isAuthenticated, upload.single('file'), async (req, res) => {
       }
     }
 
-    // Local disk fallback served at /uploads
+    if (process.env.VERCEL) {
+      return res.status(503).json({
+        error: 'Penyimpanan file cloud (Supabase Storage) sedang tidak tersedia. Pastikan bucket kampusloop-uploads aktif.',
+      });
+    }
+
+    // Local disk fallback served at /uploads (non-serverless development only)
     const localDir = path.join(__dirname, '..', 'uploads', folder);
     fs.mkdirSync(localDir, { recursive: true });
     const localFile = `${req.session.userId}_${Date.now()}_${uuidv4().slice(0, 8)}${safeExt}`;

@@ -1,43 +1,64 @@
-require('dotenv').config();
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session');
 const supabase = require('./supabaseClient');
 const { getSiteSettings } = require('./utils/helpers');
-const FileSessionStore = require('./utils/fileSessionStore');
+const createStatelessSession = require('./utils/statelessSession');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// CORS
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-  ],
-  credentials: true,
+app.set('trust proxy', 1);
+
+// Basic security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// CORS (localhost for dev, Vercel/production URLs, and same-host requests)
+const STATIC_ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]);
+
+app.use(cors((req, callback) => {
+  const origin = req.header('Origin');
+  if (!origin) {
+    return callback(null, { origin: false });
+  }
+
+  const allowed = new Set(STATIC_ALLOWED_ORIGINS);
+  if (process.env.FRONTEND_URL) allowed.add(process.env.FRONTEND_URL.replace(/\/$/, ''));
+  if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    allowed.add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+
+  let isSameHost = false;
+  try {
+    isSameHost = Boolean(req.headers.host && new URL(origin).host === req.headers.host);
+  } catch {
+    isSameHost = false;
+  }
+
+  callback(null, {
+    origin: allowed.has(origin) || isSameHost,
+    credentials: true,
+  });
 }));
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Session (persisted to disk so sessions survive server restarts)
-app.use(session({
-  store: new FileSessionStore(),
-  secret: process.env.SESSION_SECRET || 'kampusloop-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure: false,
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-  },
-}));
+// Stateless encrypted cookie session (compatible with serverless & local dev)
+app.use(createStatelessSession());
 
 // Local uploaded files static fallback
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -107,6 +128,10 @@ app.get('/', (req, res) => {
   res.json({ message: 'KampusLoop API is running' });
 });
 
-app.listen(PORT, () => {
-  console.log(`KampusLoop backend running on port ${PORT}`);
-});
+if (!process.env.VERCEL && require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`KampusLoop backend running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
