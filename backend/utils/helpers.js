@@ -171,7 +171,21 @@ function buildUserProfileData(user, profile) {
   };
 }
 
-async function getSiteSettings() {
+let cachedSiteSettings = null;
+let siteSettingsCacheTime = 0;
+const SITE_SETTINGS_TTL_MS = 60000; // 60 seconds
+
+function clearSiteSettingsCache() {
+  cachedSiteSettings = null;
+  siteSettingsCacheTime = 0;
+}
+
+async function getSiteSettings(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && cachedSiteSettings && (now - siteSettingsCacheTime < SITE_SETTINGS_TTL_MS)) {
+    return cachedSiteSettings;
+  }
+
   const { data: settings } = await supabase
     .from('settings')
     .select('*')
@@ -204,6 +218,9 @@ async function getSiteSettings() {
   if (!merged.surat_perjanjian_file_url && store.agreementFileUrl) {
     merged.surat_perjanjian_file_url = store.agreementFileUrl;
   }
+
+  cachedSiteSettings = merged;
+  siteSettingsCacheTime = now;
   return merged;
 }
 
@@ -333,4 +350,5 @@ module.exports = {
   formatProduct,
   getAgreementTemplate,
   getSiteSettings,
+  clearSiteSettingsCache,
 };

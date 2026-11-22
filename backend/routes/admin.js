@@ -9,6 +9,7 @@ const {
   formatProduct,
   getAgreementTemplate,
   getSiteSettings,
+  clearSiteSettingsCache,
   DEFAULT_SITE_SETTINGS,
   DEFAULT_PAYMENT_CONFIG,
   normalizePaymentConfig,
@@ -771,44 +772,63 @@ router.get('/pesanan/', isAdmin, async (req, res) => {
       return res.status(500).json({ error: 'Server error.' });
     }
 
-    const result = [];
-    for (const order of (orders || [])) {
+    const orderList = orders || [];
+    if (orderList.length === 0) {
+      return res.json([]);
+    }
+
+    // Bulk query foreign keys to eliminate N+1 latency
+    const productIds = [...new Set(orderList.map(o => o.produk_id).filter(Boolean))];
+    const buyerIds = [...new Set(orderList.map(o => o.pembeli_id).filter(Boolean))];
+
+    const [{ data: products }, { data: buyers }] = await Promise.all([
+      productIds.length > 0
+        ? supabase.from('products').select('*').in('id', productIds)
+        : Promise.resolve({ data: [] }),
+      buyerIds.length > 0
+        ? supabase.from('users').select('id, first_name, username').in('id', buyerIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const productMap = {};
+    (products || []).forEach(p => { productMap[p.id] = p; });
+
+    const buyerMap = {};
+    (buyers || []).forEach(u => { buyerMap[u.id] = u; });
+
+    const sellerIds = [...new Set((products || []).map(p => p.seller_id).filter(Boolean))];
+    const { data: sellers } = sellerIds.length > 0
+      ? await supabase.from('users').select('id, first_name, username').in('id', sellerIds)
+      : { data: [] };
+
+    const sellerMap = {};
+    (sellers || []).forEach(s => { sellerMap[s.id] = s; });
+
+    const store = v4Store.readStore();
+
+    const result = orderList.map(order => {
       let pembeli_nama = order.pembeli_nama || '';
       let seller_nama = order.seller_nama || '';
       let produk_nama = order.produk_nama || '';
       let produk_foto = order.produk_foto || '';
 
-      if (order.pembeli_id) {
-        const { data: buyer } = await supabase
-          .from('users')
-          .select('first_name, username')
-          .eq('id', order.pembeli_id)
-          .single();
-        if (buyer) pembeli_nama = buyer.first_name || buyer.username;
+      if (order.pembeli_id && buyerMap[order.pembeli_id]) {
+        const buyer = buyerMap[order.pembeli_id];
+        pembeli_nama = buyer.first_name || buyer.username;
       }
 
-      if (order.produk_id) {
-        const { data: produk } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', order.produk_id)
-          .single();
-        if (produk) {
-          produk_nama = produk.nama;
-          produk_foto = produk.foto_url || '';
-          if (produk.seller_nama) seller_nama = produk.seller_nama;
-          if (produk.seller_id) {
-            const { data: seller } = await supabase
-              .from('users')
-              .select('first_name, username')
-              .eq('id', produk.seller_id)
-              .single();
-            if (seller) seller_nama = seller.first_name || seller.username;
-          }
+      const produk = order.produk_id ? productMap[order.produk_id] : null;
+      if (produk) {
+        produk_nama = produk.nama;
+        produk_foto = produk.foto_url || '';
+        if (produk.seller_nama) seller_nama = produk.seller_nama;
+        if (produk.seller_id && sellerMap[produk.seller_id]) {
+          const seller = sellerMap[produk.seller_id];
+          seller_nama = seller.first_name || seller.username;
         }
       }
 
-      const extras = v4Store.readStore().orderExtras[String(order.id)] || {};
+      const extras = store.orderExtras[String(order.id)] || {};
       const subtotal = Number(order.subtotal_produk ?? extras.subtotal_produk ?? order.harga_bayar ?? 0);
       const serviceFee = Number(order.service_fee ?? extras.service_fee ?? Math.round(subtotal * 0.02));
       const shippingCost = Number(order.shipping_cost ?? extras.shipping_cost ?? Math.max(0, (order.harga_bayar || 0) - subtotal - serviceFee));
@@ -845,7 +865,7 @@ router.get('/pesanan/', isAdmin, async (req, res) => {
             },
           ]);
 
-      result.push({
+      return {
         id: order.id,
         order_number: order.order_number,
         pembeli_nama,
@@ -897,8 +917,8 @@ router.get('/pesanan/', isAdmin, async (req, res) => {
         tanggal_pesan: order.tanggal_pesan,
         tanggal_selesai: order.tanggal_selesai,
         history,
-      });
-    }
+      };
+    });
 
     res.json(result);
   } catch (err) {
@@ -1010,6 +1030,7 @@ router.post('/shipping-settings/', isAdmin, async (req, res) => {
     };
 
     v4Store.setShippingConfig(newConfig);
+    clearSiteSettingsCache();
 
     try {
       await supabase.from('settings').update({ shipping_config: newConfig }).eq('id', 1);
@@ -1052,6 +1073,7 @@ router.get('/kontak/', isAdmin, async (req, res) => {
 // GET /api/admin/agreement-template/
 router.get('/agreement-template/', isAdmin, async (req, res) => {
   try {
+    clearSiteSettingsCache();
     const template = await getAgreementTemplate();
     res.json(template);
   } catch (err) {
@@ -1110,6 +1132,7 @@ async function saveAgreementTemplate(req, res) {
       return res.status(400).json({ error: 'Gagal menyimpan format surat perjanjian.' });
     }
 
+    clearSiteSettingsCache();
     const template = await getAgreementTemplate();
     res.json({ message: 'Format surat perjanjian berhasil disimpan.', template });
   } catch (err) {
@@ -1219,6 +1242,7 @@ async function saveAdminSettings(req, res) {
       }
     }
 
+    clearSiteSettingsCache();
     const latest = await getSiteSettings();
     res.json({ message: 'Pengaturan web berhasil disimpan ke database.', settings: latest });
   } catch (err) {

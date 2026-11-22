@@ -357,37 +357,47 @@ export default function AdminDashboard() {
 
   const loadAdminData = useCallback(async () => {
     try {
-      const [statsRes, productsRes, usersRes, ordersRes, settingsRes, articlesRes] = await Promise.all([
-        api.get('/admin/stats/').catch(() => null),
-        api.get('/admin/produk/').catch(() => ({ data: [] })),
-        api.get('/admin/users/').catch(() => ({ data: [] })),
-        api.get('/admin/pesanan/').catch(() => ({ data: [] })),
-        api.get('/admin/settings/').catch(() => null),
-        api.get('/admin/artikel/').catch(() => ({ data: [] })),
-      ])
+      const pStats = api.get('/admin/stats/').then((res) => {
+        if (res?.data) setStats(res.data)
+      }).catch(() => null)
 
-      if (statsRes?.data) setStats(statsRes.data)
-      if (productsRes?.data) {
-        setProductsList(Array.isArray(productsRes.data) ? productsRes.data : (productsRes.data?.results || []))
-      }
-      if (usersRes?.data) {
-        setUsersList(Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.results || []))
-      }
-      if (ordersRes?.data) {
-        const freshOrders = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.results || [])
-        setOrdersList(freshOrders)
-        setSelectedOrderAudit((current) => {
-          if (!current) return null
-          const updated = freshOrders.find((x) => x.id === current.id)
-          return updated ? { ...current, ...updated } : current
-        })
-      }
-      if (settingsRes?.data) {
-        setWebSettings((prev) => ({ ...prev, ...settingsRes.data }))
-      }
-      if (articlesRes?.data) {
-        setArticlesList(Array.isArray(articlesRes.data) ? articlesRes.data : [])
-      }
+      const pProducts = api.get('/admin/produk/').then((res) => {
+        if (res?.data) {
+          setProductsList(Array.isArray(res.data) ? res.data : (res.data?.results || []))
+        }
+      }).catch(() => null)
+
+      const pUsers = api.get('/admin/users/').then((res) => {
+        if (res?.data) {
+          setUsersList(Array.isArray(res.data) ? res.data : (res.data?.results || []))
+        }
+      }).catch(() => null)
+
+      const pOrders = api.get('/admin/pesanan/').then((res) => {
+        if (res?.data) {
+          const freshOrders = Array.isArray(res.data) ? res.data : (res.data?.results || [])
+          setOrdersList(freshOrders)
+          setSelectedOrderAudit((current) => {
+            if (!current) return null
+            const updated = freshOrders.find((x) => x.id === current.id)
+            return updated ? { ...current, ...updated } : current
+          })
+        }
+      }).catch(() => null)
+
+      const pSettings = api.get('/admin/settings/').then((res) => {
+        if (res?.data) {
+          setWebSettings((prev) => ({ ...prev, ...res.data }))
+        }
+      }).catch(() => null)
+
+      const pArticles = api.get('/admin/artikel/').then((res) => {
+        if (res?.data) {
+          setArticlesList(Array.isArray(res.data) ? res.data : [])
+        }
+      }).catch(() => null)
+
+      await Promise.allSettled([pStats, pProducts, pUsers, pOrders, pSettings, pArticles])
     } catch {
       // Fallback
     }
@@ -400,7 +410,7 @@ export default function AdminDashboard() {
     }
 
     loadAdminData()
-  }, [user, navigate, loadAdminData])
+  }, [user?.id, navigate, loadAdminData])
 
   const uploadProductImage = async (file, isEdit = false) => {
     if (!file) return

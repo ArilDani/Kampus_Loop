@@ -186,6 +186,10 @@ async function saveShippingSettings(config) {
   };
   // Save to fallback store
   v4Store.setShippingConfig(merged);
+  try {
+    const { clearSiteSettingsCache } = require('./helpers');
+    clearSiteSettingsCache();
+  } catch {}
 
   try {
     const { error } = await supabase

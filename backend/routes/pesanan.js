@@ -235,40 +235,44 @@ router.get('/', isAuthenticated, async (req, res) => {
       return res.status(500).json({ error: 'Server error.' });
     }
 
-    const result = [];
-    for (const order of orders || []) {
-      let buyer = null;
-      let seller = null;
-      let produk = null;
-
-      if (order.pembeli_id) {
-        const { data: bData } = await supabase
-          .from('users')
-          .select('first_name, username')
-          .eq('id', order.pembeli_id)
-          .single();
-        buyer = bData;
-      }
-
-      if (order.produk_id) {
-        const { data: pData } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', order.produk_id)
-          .single();
-        produk = pData;
-        if (produk && produk.seller_id) {
-          const { data: sData } = await supabase
-            .from('users')
-            .select('first_name, username')
-            .eq('id', produk.seller_id)
-            .single();
-          seller = sData;
-        }
-      }
-
-      result.push(enrichOrderObject(order, buyer, seller, produk));
+    const orderList = orders || [];
+    if (orderList.length === 0) {
+      return res.json([]);
     }
+
+    // Bulk query foreign records to eliminate N+1 latency
+    const productIds = [...new Set(orderList.map(o => o.produk_id).filter(Boolean))];
+    const buyerIds = [...new Set(orderList.map(o => o.pembeli_id).filter(Boolean))];
+
+    const [{ data: products }, { data: buyers }] = await Promise.all([
+      productIds.length > 0
+        ? supabase.from('products').select('*').in('id', productIds)
+        : Promise.resolve({ data: [] }),
+      buyerIds.length > 0
+        ? supabase.from('users').select('id, first_name, username').in('id', buyerIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const productMap = {};
+    (products || []).forEach(p => { productMap[p.id] = p; });
+
+    const buyerMap = {};
+    (buyers || []).forEach(u => { buyerMap[u.id] = u; });
+
+    const sellerIds = [...new Set((products || []).map(p => p.seller_id).filter(Boolean))];
+    const { data: sellers } = sellerIds.length > 0
+      ? await supabase.from('users').select('id, first_name, username').in('id', sellerIds)
+      : { data: [] };
+
+    const sellerMap = {};
+    (sellers || []).forEach(s => { sellerMap[s.id] = s; });
+
+    const result = orderList.map(order => {
+      const buyer = order.pembeli_id ? buyerMap[order.pembeli_id] : null;
+      const produk = order.produk_id ? productMap[order.produk_id] : null;
+      const seller = produk && produk.seller_id ? sellerMap[produk.seller_id] : null;
+      return enrichOrderObject(order, buyer, seller, produk);
+    });
 
     res.json(result);
   } catch (err) {

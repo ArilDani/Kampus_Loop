@@ -19,16 +19,23 @@ router.get('/', isAuthenticated, async (req, res) => {
       return res.status(500).json({ error: 'Server error.' });
     }
 
-    // Enrich with product info
-    const result = [];
-    for (const wl of (wishlists || [])) {
-      const { data: produk } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', wl.produk_id)
-        .single();
+    const wlList = wishlists || [];
+    if (wlList.length === 0) {
+      return res.json([]);
+    }
 
-      result.push({
+    // Bulk query products to eliminate N+1 latency
+    const productIds = [...new Set(wlList.map(w => w.produk_id).filter(Boolean))];
+    const { data: products } = productIds.length > 0
+      ? await supabase.from('products').select('*').in('id', productIds)
+      : { data: [] };
+
+    const productMap = {};
+    (products || []).forEach(p => { productMap[p.id] = p; });
+
+    const result = wlList.map(wl => {
+      const produk = productMap[wl.produk_id];
+      return {
         id: wl.id,
         produk_nama: produk ? produk.nama : '',
         produk_foto: produk ? (produk.foto_url || '') : '',
@@ -36,8 +43,8 @@ router.get('/', isAuthenticated, async (req, res) => {
         produk_kondisi: produk ? produk.kondisi : '',
         produk_harga: produk ? produk.harga : 0,
         tanggal_ditambah: wl.tanggal_ditambah,
-      });
-    }
+      };
+    });
 
     res.json(result);
   } catch (err) {

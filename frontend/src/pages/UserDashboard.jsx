@@ -38,6 +38,7 @@ export default function UserDashboard() {
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState('overview')
+  const [loadingDashboard, setLoadingDashboard] = useState(true)
   const [stats, setStats] = useState({ listings_count: 0, orders_count: 0, total_spent: 0, impact_score: 0 })
   const [myListings, setMyListings] = useState([])
   const [orders, setOrders] = useState([])
@@ -134,28 +135,69 @@ export default function UserDashboard() {
   )
 
   const loadDashboardData = useCallback(async () => {
+    setLoadingDashboard(true)
     try {
-      const [statsRes, listingsRes, ordersRes, wishlistRes, sellerOrdRes, tmplRes, payRes] = await Promise.all([
-        api.get('/user/stats/').catch(() => ({ data: { listings_count: 0, orders_count: 0, total_spent: 0, impact_score: 0 } })),
-        api.get('/user/listings/').catch(() => ({ data: [] })),
-        api.get('/pesanan/').catch(() => ({ data: [] })),
-        api.get('/wishlist/').catch(() => ({ data: [] })),
-        api.get('/user/seller-orders/').catch(() => ({ data: [] })),
-        api.get('/user/agreement-template/').catch(() => ({ data: { judul: '', isi: '', catatan: '' } })),
-        api.get('/user/payment-settings/').catch(() => ({ data: null })),
-      ])
+      // Fetch stats, listings, orders, wishlist in parallel, progressively populating the UI
+      const pStats = api.get('/user/stats/')
+        .then((res) => {
+          if (res.data) setStats(res.data)
+          return res.data
+        })
+        .catch(() => null)
 
-      setStats(statsRes.data || { listings_count: 0, orders_count: 0, total_spent: 0, impact_score: 0 })
-      setMyListings(Array.isArray(listingsRes.data) ? listingsRes.data : (listingsRes.data?.results || []))
-      setOrders(Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.results || []))
-      setWishlistItems(Array.isArray(wishlistRes.data) ? wishlistRes.data : (wishlistRes.data?.results || []))
-      setSellerOrders(Array.isArray(sellerOrdRes.data) ? sellerOrdRes.data : [])
-      if (tmplRes.data) setAgreementTemplate(tmplRes.data)
-      if (payRes?.data && typeof payRes.data === 'object') {
-        setSellerPayment((prev) => ({ ...prev, ...payRes.data }))
-      }
+      const pListings = api.get('/user/listings/')
+        .then((res) => {
+          const list = Array.isArray(res.data) ? res.data : (res.data?.results || [])
+          setMyListings(list)
+          return list
+        })
+        .catch(() => [])
+
+      const pOrders = api.get('/pesanan/')
+        .then((res) => {
+          const ords = Array.isArray(res.data) ? res.data : (res.data?.results || [])
+          setOrders(ords)
+          return ords
+        })
+        .catch(() => [])
+
+      const pWishlist = api.get('/wishlist/')
+        .then((res) => {
+          const wls = Array.isArray(res.data) ? res.data : (res.data?.results || [])
+          setWishlistItems(wls)
+          return wls
+        })
+        .catch(() => [])
+
+      const pSellerOrders = api.get('/user/seller-orders/')
+        .then((res) => {
+          const sOrds = Array.isArray(res.data) ? res.data : []
+          setSellerOrders(sOrds)
+          return sOrds
+        })
+        .catch(() => [])
+
+      const pTemplate = api.get('/user/agreement-template/')
+        .then((res) => {
+          if (res.data) setAgreementTemplate(res.data)
+          return res.data
+        })
+        .catch(() => null)
+
+      const pPayment = api.get('/user/payment-settings/')
+        .then((res) => {
+          if (res?.data && typeof res.data === 'object') {
+            setSellerPayment((prev) => ({ ...prev, ...res.data }))
+          }
+          return res?.data
+        })
+        .catch(() => null)
+
+      await Promise.allSettled([pStats, pListings, pOrders, pWishlist, pSellerOrders, pTemplate, pPayment])
     } catch {
       // Fallback kept empty
+    } finally {
+      setLoadingDashboard(false)
     }
   }, [])
 
@@ -201,9 +243,13 @@ export default function UserDashboard() {
       bukti_lain_url: prev.bukti_lain_url || user.bukti_lain_url || '',
       surat_perjanjian_url: prev.surat_perjanjian_url || user.surat_perjanjian_url || '',
     }))
+  }, [user, navigate])
 
-    loadDashboardData()
-  }, [user, navigate, loadDashboardData])
+  useEffect(() => {
+    if (user?.id) {
+      loadDashboardData()
+    }
+  }, [user?.id, loadDashboardData])
 
   useEffect(() => {
     const onDataUpdated = () => {
@@ -666,25 +712,25 @@ export default function UserDashboard() {
                 <div className="dash-stat-grid">
                   <article className="dash-stat">
                     <span>Barang terdaftar</span>
-                    <strong>{myListings.length}</strong>
+                    <strong>{loadingDashboard && myListings.length === 0 ? '...' : (stats.listings_count ?? myListings.length)}</strong>
                     <small><b>↗</b> Barang yang kamu jual</small>
                     <i><Package size={16} /></i>
                   </article>
                   <article className="dash-stat">
                     <span>Pesanan aktif</span>
-                    <strong>{orders.length}</strong>
+                    <strong>{loadingDashboard && orders.length === 0 ? '...' : (stats.orders_count ?? orders.length)}</strong>
                     <small><b>↗</b> Transaksi terpantau</small>
                     <i><Clock size={16} /></i>
                   </article>
                   <article className="dash-stat">
                     <span>Total transaksi</span>
-                    <strong>{formatPrice(stats.total_spent ?? 0)}</strong>
+                    <strong>{loadingDashboard && !stats.total_spent ? '...' : formatPrice(stats.total_spent ?? stats.total_transaksi ?? 0)}</strong>
                     <small><b>↗</b> Nilai pembelian</small>
                     <i><ArrowUpRight size={16} /></i>
                   </article>
                   <article className="dash-stat accent-stat">
                     <span>Impact score</span>
-                    <strong>{stats.impact_score ?? 0}</strong>
+                    <strong>{loadingDashboard && !stats.impact_score ? '...' : (stats.impact_score ?? 0)}</strong>
                     <small>Barang berputar kembali</small>
                     <i><Sparkles size={16} /></i>
                   </article>

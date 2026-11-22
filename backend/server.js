@@ -85,9 +85,18 @@ app.get('/api/settings/public/', async (req, res) => {
   }
 });
 
-// Public live stats for Home/About synchronization
+// Public live stats for Home/About synchronization (cached in-memory for 30s)
+let cachedPublicStats = null;
+let publicStatsCacheTime = 0;
+const PUBLIC_STATS_TTL_MS = 30000; // 30 seconds
+
 app.get('/api/stats/public/', async (req, res) => {
   try {
+    const now = Date.now();
+    if (cachedPublicStats && (now - publicStatsCacheTime < PUBLIC_STATS_TTL_MS)) {
+      return res.json(cachedPublicStats);
+    }
+
     const [{ data: users }, { data: products }, { data: orders }] = await Promise.all([
       supabase.from('users').select('id'),
       supabase.from('products').select('id, kategori, status, harga, harga_asli'),
@@ -107,7 +116,7 @@ app.get('/api/stats/public/', async (req, res) => {
       categoryCounts[p.kategori] = (categoryCounts[p.kategori] || 0) + 1;
     });
 
-    res.json({
+    const statsPayload = {
       total_users: (users || []).length,
       active_products: approvedProducts.length,
       sold_products: soldProducts.length,
@@ -116,7 +125,12 @@ app.get('/api/stats/public/', async (req, res) => {
       total_orders: validOrders.length,
       total_gmv: totalGmv,
       category_counts: categoryCounts,
-    });
+    };
+
+    cachedPublicStats = statsPayload;
+    publicStatsCacheTime = now;
+
+    res.json(statsPayload);
   } catch (err) {
     console.error('Public stats error:', err);
     res.status(500).json({ error: 'Server error.' });
