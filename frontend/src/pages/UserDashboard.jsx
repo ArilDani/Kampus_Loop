@@ -16,10 +16,20 @@ import {
   User as UserIcon,
   LogOut,
   RotateCw,
+  CreditCard,
+  Truck,
+  AlertCircle,
+  Calendar,
+  DollarSign,
+  CheckCircle,
+  ExternalLink,
+  ShieldCheck,
+  ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
 import CodLocationManager from '../components/CodLocationManager'
+import MidtransPaymentModal from '../components/MidtransPaymentModal'
 import api from '../api'
 
 export default function UserDashboard() {
@@ -35,6 +45,11 @@ export default function UserDashboard() {
   const [wishlistItems, setWishlistItems] = useState([])
   const [searchListing, setSearchListing] = useState('')
 
+  // Modal states for payment, detail, shipping status update
+  const [payingOrder, setPayingOrder] = useState(null)
+  const [detailModalOrder, setDetailModalOrder] = useState(null)
+  const [updatingShippingId, setUpdatingShippingId] = useState(null)
+
   // New listing form state
   const [showListingForm, setShowListingForm] = useState(false)
   const [newListing, setNewListing] = useState({
@@ -43,6 +58,7 @@ export default function UserDashboard() {
     harga: '',
     harga_asli: '',
     kondisi: 'Good',
+    stok: 1,
     lokasi: '',
     cod_lokasi: '',
     foto_url: '',
@@ -263,6 +279,7 @@ export default function UserDashboard() {
         harga: '',
         harga_asli: '',
         kondisi: 'Good',
+        stok: 1,
         lokasi: '',
         cod_lokasi: '',
         foto_url: '',
@@ -291,6 +308,7 @@ export default function UserDashboard() {
         cod_lokasi: editingListing.cod_lokasi || '',
         foto_url: editingListing.foto_url,
         deskripsi: editingListing.deskripsi,
+        stok: editingListing.stok !== undefined ? Math.max(0, parseInt(editingListing.stok, 10)) : 1,
       })
       showToast('Produk berhasil diperbarui dan tersimpan di database!')
       setEditingListing(null)
@@ -299,6 +317,32 @@ export default function UserDashboard() {
       showToast(err.response?.data?.error || 'Gagal memperbarui produk.')
     } finally {
       setSavingEditListing(false)
+    }
+  }
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm('Yakin ingin membatalkan pesanan ini? Stok produk akan dikembalikan ke etalase toko.')) return
+    try {
+      await api.post(`/pesanan/${orderId}/cancel/`)
+      showToast('Pesanan berhasil dibatalkan dan stok produk dikembalikan.')
+      if (payingOrder?.id === orderId) setPayingOrder(null)
+      if (detailModalOrder?.id === orderId) setDetailModalOrder(null)
+      loadDashboardData()
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Gagal membatalkan pesanan.')
+    }
+  }
+
+  const handleSellerUpdateShipping = async (orderId, newStatus) => {
+    try {
+      setUpdatingShippingId(orderId)
+      await api.put(`/user/seller-orders/${orderId}/shipping-status/`, { shipping_status: newStatus })
+      showToast(`Status pengiriman berhasil diubah ke: ${newStatus}`)
+      loadDashboardData()
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Gagal memperbarui status pengiriman.')
+    } finally {
+      setUpdatingShippingId(null)
     }
   }
 
@@ -960,6 +1004,24 @@ export default function UserDashboard() {
                               </select>
                             </div>
                             <div className="field">
+                              <label htmlFor="listingStok">Jumlah Stok (Quantity)</label>
+                              <input
+                                id="listingStok"
+                                type="number"
+                                min="0"
+                                required
+                                placeholder="1"
+                                value={newListing.stok ?? 1}
+                                onChange={(e) => setNewListing({ ...newListing, stok: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                              />
+                              <small style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                                Jika stok 0, otomatis diberi label "Habis" tanpa menghapus produk.
+                              </small>
+                            </div>
+                          </div>
+
+                          <div className="form-row">
+                            <div className="field">
                               <label htmlFor="listingLocation">Lokasi / Kampus</label>
                               <input
                                 id="listingLocation"
@@ -1063,18 +1125,27 @@ export default function UserDashboard() {
                                 {item.kategori} · {item.kondisi} ·{' '}
                                 <span
                                   className={`status-pill ${
-                                    item.status === 'approved' ? 'status-green' : 'status-orange'
+                                    item.status === 'approved' && (item.stok ?? 1) > 0
+                                      ? 'status-green'
+                                      : item.status === 'sold' || (item.stok ?? 1) === 0
+                                        ? 'status-red'
+                                        : item.status === 'rejected'
+                                          ? 'status-red'
+                                          : 'status-orange'
                                   }`}
                                 >
-                                  {item.status === 'approved'
-                                    ? 'Aktif'
-                                    : item.status === 'sold'
-                                      ? 'Terjual'
+                                  {item.status === 'sold' || (item.stok ?? 1) === 0
+                                    ? 'Habis / Sold'
+                                    : item.status === 'approved'
+                                      ? 'Aktif'
                                       : item.status === 'rejected'
                                         ? 'Ditolak'
                                         : 'Menunggu review'}
                                 </span>
                               </p>
+                              <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>Stok: <b style={{ color: (item.stok ?? 1) === 0 ? 'var(--red, #ef4444)' : 'var(--text)' }}>{item.stok ?? 1} unit</b></span>
+                              </div>
                               <div className="my-listing-foot">
                                 <strong>{formatPrice(item.harga)}</strong>
                                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -1120,27 +1191,97 @@ export default function UserDashboard() {
                             <table className="dash-table">
                               <thead>
                                 <tr>
-                                  <th>ID Pesanan</th>
+                                  <th>ID &amp; Tanggal</th>
                                   <th>Pembeli</th>
                                   <th>Produk</th>
-                                  <th>Nilai</th>
-                                  <th>Status</th>
+                                  <th>Rincian Biaya</th>
+                                  <th>Pendapatan Bersih</th>
+                                  <th>Pembayaran &amp; Fee COD</th>
+                                  <th>Status Pengiriman</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {sellerOrders.map((o) => (
-                                  <tr key={o.id}>
-                                    <td><b>#{o.order_number}</b></td>
-                                    <td>{o.pembeli_nama || 'Mahasiswa'}</td>
-                                    <td>{o.produk_nama}</td>
-                                    <td><b>{formatPrice(o.harga_bayar)}</b></td>
-                                    <td>
-                                      <span className={`status-pill ${o.status === 'completed' ? 'status-green' : 'status-orange'}`}>
-                                        {o.status_display || o.status}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {sellerOrders.map((o) => {
+                                  const isCod = o.delivery_type === 'cod' || (o.payment_method || '').toUpperCase() === 'COD';
+                                  return (
+                                    <tr key={o.id}>
+                                      <td>
+                                        <b>#{o.order_number}</b>
+                                        <small style={{ display: 'block', color: 'var(--muted)', fontSize: '10px' }}>
+                                          {o.tanggal_pesan ? new Date(o.tanggal_pesan).toLocaleDateString('id-ID') : '-'}
+                                        </small>
+                                      </td>
+                                      <td>
+                                        <div style={{ fontWeight: 600 }}>{o.pembeli_nama || 'Mahasiswa'}</div>
+                                        <small style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                                          {isCod ? `Titik COD: ${o.cod_location || 'Kampus'}` : `Kirim: ${o.shipping_address || 'Alamat'}`}
+                                        </small>
+                                      </td>
+                                      <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          {o.produk_foto && (
+                                            <img
+                                              src={o.produk_foto}
+                                              alt=""
+                                              style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }}
+                                            />
+                                          )}
+                                          <span>{o.produk_nama}</span>
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <div style={{ fontSize: '11px', lineHeight: '1.4' }}>
+                                          <div>Subtotal: {formatPrice(o.subtotal_produk ?? o.harga_bayar)}</div>
+                                          <div style={{ color: 'var(--muted)' }}>Biaya Layanan 2%: {formatPrice(o.service_fee || 0)}</div>
+                                          <div style={{ color: 'var(--muted)' }}>Ongkir ({o.distance_km || 0} km): {formatPrice(o.shipping_cost || 0)}</div>
+                                          <div style={{ fontWeight: 600, marginTop: '2px' }}>Total Tagihan: {formatPrice(o.harga_bayar)}</div>
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <strong style={{ color: 'var(--green)', fontSize: '13px' }}>
+                                          {formatPrice(o.net_seller_revenue || o.subtotal_produk || o.harga_bayar)}
+                                        </strong>
+                                        <small style={{ display: 'block', fontSize: '10px', color: 'var(--muted)' }}>
+                                          (Subtotal produk)
+                                        </small>
+                                      </td>
+                                      <td>
+                                        <span className={`status-pill ${o.payment_status === 'paid' ? 'status-green' : 'status-orange'}`}>
+                                          {o.payment_status_display || (o.payment_status === 'paid' ? 'LUNAS' : 'Menunggu Bayar')}
+                                        </span>
+                                        {isCod && (
+                                          <div style={{ marginTop: '5px', fontSize: '10px', color: o.cod_fee_status === 'paid' ? 'var(--green)' : '#d97706' }}>
+                                            Tagihan Fee 2%: {formatPrice(o.cod_fee_amount || o.service_fee || 0)}
+                                            <br />
+                                            <b>({o.cod_fee_status === 'paid' ? 'Sudah Disetor' : 'Belum Disetor'})</b>
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td>
+                                        <select
+                                          value={o.shipping_status || 'pending'}
+                                          disabled={updatingShippingId === o.id || o.shipping_status === 'delivered' || o.shipping_status === 'cancelled'}
+                                          onChange={(e) => handleSellerUpdateShipping(o.id, e.target.value)}
+                                          style={{
+                                            fontSize: '11px',
+                                            padding: '4px 8px',
+                                            borderRadius: '6px',
+                                            border: '1px solid var(--line)',
+                                            background: 'var(--card-bg)',
+                                            color: 'var(--text)',
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          <option value="pending">Menunggu Diproses</option>
+                                          <option value="processing">Sedang Dipersiapkan</option>
+                                          <option value="shipped">Sedang Dikirim</option>
+                                          <option value="delivered">Terkirim / Selesai</option>
+                                          <option value="cancelled">Dibatalkan</option>
+                                        </select>
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
                               </tbody>
                             </table>
                           </div>
@@ -1159,69 +1300,137 @@ export default function UserDashboard() {
                   <div>
                     <span className="eyebrow">Purchase history</span>
                     <h2>Pesanan saya</h2>
-                    <p>Pantau riwayat transaksi dan status pembelianmu di kampus.</p>
+                    <p>Pantau riwayat transaksi, instruksi pembayaran Midtrans, dan status pengiriman produkmu.</p>
                   </div>
                 </div>
 
                 <div className="order-cards">
                   {orders.length > 0 ? (
-                    orders.map((o) => (
-                      <article key={o.id} className="order-card">
-                        <div className="order-card-top">
-                          <span
-                            className={`status-pill ${
-                              o.status === 'completed' ? 'status-green' : 'status-orange'
-                            }`}
-                          >
-                            {o.status_display || o.status}
-                          </span>
-                          <small>#{o.order_number}</small>
-                        </div>
-                        <div className="table-product">
-                          <img
-                            src={
-                              o.produk_foto ||
-                              'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'
-                            }
-                            alt=""
-                          />
-                          <span>
-                            <b>{o.produk_nama}</b>
-                            <small>
-                              Penjual: {o.seller_nama || 'KampusLoop'} ·{' '}
-                              {(o.payment_method || 'COD').toUpperCase()} ·{' '}
-                              {o.delivery_type === 'delivery' || o.delivery_type === 'antar'
-                                ? 'Antar Alamat'
-                                : 'COD'}
-                            </small>
-                            {(o.cod_location || o.shipping_address) && (
-                              <small style={{ display: 'block', marginTop: '2px', color: 'var(--muted)' }}>
+                    orders.map((o) => {
+                      const isUnpaid = o.payment_status === 'unpaid' || o.status === 'pending';
+                      const isDigitalPayment = (o.payment_method || '').toUpperCase() !== 'COD';
+                      const canCancel = o.status === 'pending' || o.payment_status === 'unpaid';
+
+                      return (
+                        <article key={o.id} className="order-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div className="order-card-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              {/* Status Pembayaran */}
+                              <span
+                                className={`status-pill ${
+                                  o.payment_status === 'paid'
+                                    ? 'status-green'
+                                    : o.payment_status === 'cancelled'
+                                      ? 'status-red'
+                                      : 'status-orange'
+                                }`}
+                              >
+                                {o.payment_status === 'paid' ? 'LUNAS' : o.payment_status === 'cancelled' ? 'Batal' : 'Menunggu Bayar'}
+                              </span>
+
+                              {/* Status Pengiriman */}
+                              <span
+                                className={`status-pill ${
+                                  o.shipping_status === 'delivered'
+                                    ? 'status-green'
+                                    : o.shipping_status === 'shipped'
+                                      ? 'status-blue'
+                                      : o.shipping_status === 'cancelled'
+                                        ? 'status-red'
+                                        : 'status-orange'
+                                }`}
+                              >
+                                {o.shipping_status_display || (o.shipping_status === 'delivered' ? 'Sampai / Selesai' : o.shipping_status === 'shipped' ? 'Sedang Dikirim' : o.shipping_status === 'cancelled' ? 'Dibatalkan' : 'Diproses Penjual')}
+                              </span>
+                            </div>
+                            <small style={{ fontWeight: 600 }}>#{o.order_number}</small>
+                          </div>
+
+                          <div className="table-product">
+                            <img
+                              src={
+                                o.produk_foto ||
+                                'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'
+                              }
+                              alt=""
+                            />
+                            <span>
+                              <b>{o.produk_nama}</b>
+                              <small>
+                                Penjual: {o.seller_nama || 'KampusLoop'} ·{' '}
+                                {(o.payment_method || 'COD').toUpperCase()} ·{' '}
                                 {o.delivery_type === 'delivery' || o.delivery_type === 'antar'
-                                  ? `${o.shipping_address}${o.kode_pos ? ` (${o.kode_pos})` : ''}`
-                                  : `Titik COD: ${o.cod_location}`}
+                                  ? `Pengiriman Jarak (${o.distance_km || 0} km)`
+                                  : 'COD Kampus'}
                               </small>
+                              {(o.cod_location || o.shipping_address) && (
+                                <small style={{ display: 'block', marginTop: '2px', color: 'var(--muted)' }}>
+                                  {o.delivery_type === 'delivery' || o.delivery_type === 'antar'
+                                    ? `Alamat: ${o.shipping_address}${o.kode_pos ? ` (${o.kode_pos})` : ''}`
+                                    : `Titik Temu COD: ${o.cod_location}`}
+                                </small>
+                              )}
+                              {o.catatan && (
+                                <small style={{ display: 'block', marginTop: '2px', color: 'var(--muted)', fontStyle: 'italic' }}>
+                                  Catatan: "{o.catatan}"
+                                </small>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Breakdown bar */}
+                          <div style={{ background: 'var(--section-bg, #f8fafc)', padding: '10px 14px', borderRadius: '10px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)' }}>
+                              <span>Subtotal Produk</span>
+                              <span>{formatPrice(o.subtotal_produk || o.harga_bayar)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)' }}>
+                              <span>Biaya Layanan Platform (2%)</span>
+                              <span>{formatPrice(o.service_fee || 0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)' }}>
+                              <span>Ongkir ({o.distance_km || 0} km - {o.shipping_courier || 'Kurir'})</span>
+                              <span>{formatPrice(o.shipping_cost || 0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '13px', borderTop: '1px solid var(--line)', paddingTop: '6px', marginTop: '2px' }}>
+                              <span>Total Pembayaran</span>
+                              <span style={{ color: 'var(--green)' }}>{formatPrice(o.harga_bayar || o.total_bayar)}</span>
+                            </div>
+                          </div>
+
+                          <div className="order-card-bottom" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {canCancel && (
+                              <button
+                                className="btn btn-outline"
+                                style={{ color: '#ef4444', borderColor: '#ef4444', padding: '6px 12px', fontSize: '11px' }}
+                                onClick={() => handleCancelOrder(o.id)}
+                              >
+                                Batalkan
+                              </button>
                             )}
-                          </span>
-                        </div>
-                        <div className="order-card-bottom">
-                          <strong>{formatPrice(o.harga_bayar)}</strong>
-                          <button
-                            className="btn btn-outline"
-                            onClick={() =>
-                              showToast(
-                                `#${o.order_number} · ${(o.payment_method || 'COD').toUpperCase()} (${
-                                  o.delivery_type === 'delivery' || o.delivery_type === 'antar'
-                                    ? o.shipping_address || 'Antar Alamat'
-                                    : o.cod_location || 'COD'
-                                })`
-                              )
-                            }
-                          >
-                            Detail pesanan
-                          </button>
-                        </div>
-                      </article>
-                    ))
+
+                            {isUnpaid && isDigitalPayment && (
+                              <button
+                                className="btn btn-primary"
+                                style={{ padding: '6px 14px', fontSize: '11px', background: 'var(--green)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                onClick={() => setPayingOrder(o)}
+                              >
+                                <CreditCard size={13} />
+                                Bayar Sekarang (Midtrans) ↗
+                              </button>
+                            )}
+
+                            <button
+                              className="btn btn-outline"
+                              style={{ padding: '6px 12px', fontSize: '11px' }}
+                              onClick={() => setDetailModalOrder(o)}
+                            >
+                              Detail Pesanan
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })
                   ) : (
                     <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '55px 20px' }}>
                       <p style={{ margin: '0 0 14px', color: 'var(--muted)' }}>
@@ -1954,7 +2163,23 @@ export default function UserDashboard() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>Lokasi</label>
+                  <label>Jumlah Stok (Quantity)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editingListing.stok ?? 1}
+                    onChange={(e) => setEditingListing({ ...editingListing, stok: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                  />
+                  <small style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                    Ubah ke &gt; 0 agar produk kembali tersedia, atau 0 agar otomatis berstatus Habis/Sold.
+                  </small>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="field">
+                  <label>Lokasi / Kampus</label>
                   <input
                     value={editingListing.lokasi || ''}
                     onChange={(e) => setEditingListing({ ...editingListing, lokasi: e.target.value })}
@@ -2006,6 +2231,192 @@ export default function UserDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: MIDTRANS PAYMENT MODAL (WITH MINIMIZE BAR) ─── */}
+      {payingOrder && (
+        <MidtransPaymentModal
+          order={payingOrder}
+          onClose={() => setPayingOrder(null)}
+          onPaymentSuccess={() => {
+            showToast('Pembayaran berhasil diverifikasi!')
+            setPayingOrder(null)
+            loadDashboardData()
+          }}
+          onCancelOrder={handleCancelOrder}
+        />
+      )}
+
+      {/* ─── MODAL: ORDER DETAIL MODAL ───────────────────────── */}
+      {detailModalOrder && (
+        <div
+          className="modal-backdrop show"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+          }}
+          onClick={() => setDetailModalOrder(null)}
+        >
+          <div
+            className="modal-dialog"
+            style={{
+              background: 'var(--card-bg, #fff)',
+              borderRadius: '18px',
+              maxWidth: '560px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '24px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
+              <div>
+                <span className="eyebrow">Rincian Transaksi</span>
+                <h3 style={{ margin: 0, fontSize: '18px' }}>Pesanan #{detailModalOrder.order_number}</h3>
+              </div>
+              <button
+                className="dash-icon-button"
+                onClick={() => setDetailModalOrder(null)}
+                style={{ cursor: 'pointer', border: 'none', background: 'transparent', fontSize: '20px' }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Status Pills */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <span className={`status-pill ${detailModalOrder.payment_status === 'paid' ? 'status-green' : detailModalOrder.payment_status === 'cancelled' ? 'status-red' : 'status-orange'}`}>
+                Status Bayar: {detailModalOrder.payment_status === 'paid' ? 'LUNAS' : detailModalOrder.payment_status === 'cancelled' ? 'Batal' : 'Menunggu Bayar'}
+              </span>
+              <span className={`status-pill ${detailModalOrder.shipping_status === 'delivered' ? 'status-green' : detailModalOrder.shipping_status === 'shipped' ? 'status-blue' : detailModalOrder.shipping_status === 'cancelled' ? 'status-red' : 'status-orange'}`}>
+                Status Kirim: {detailModalOrder.shipping_status_display || detailModalOrder.shipping_status || 'Diproses'}
+              </span>
+            </div>
+
+            {/* Produk */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'var(--section-bg, #f8fafc)', padding: '12px', borderRadius: '12px', marginBottom: '16px' }}>
+              {detailModalOrder.produk_foto && (
+                <img
+                  src={detailModalOrder.produk_foto}
+                  alt=""
+                  style={{ width: '56px', height: '56px', borderRadius: '8px', objectFit: 'cover' }}
+                />
+              )}
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: '0 0 4px', fontSize: '15px' }}>{detailModalOrder.produk_nama}</h4>
+                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                  Penjual: {detailModalOrder.seller_nama || 'KampusLoop'}
+                </div>
+              </div>
+            </div>
+
+            {/* Rincian Biaya (Formula Transparan) */}
+            <div style={{ marginBottom: '16px' }}>
+              <h5 style={{ margin: '0 0 8px', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)' }}>
+                Rincian Biaya Transparan
+              </h5>
+              <div style={{ border: '1px solid var(--line)', borderRadius: '12px', padding: '12px 14px', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Subtotal Produk</span>
+                  <b>{formatPrice(detailModalOrder.subtotal_produk ?? detailModalOrder.harga_bayar)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)' }}>
+                  <span>Biaya Layanan Platform (2%)</span>
+                  <span>{formatPrice(detailModalOrder.service_fee || 0)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)' }}>
+                  <span>Ongkir ({detailModalOrder.distance_km || 0} km - {detailModalOrder.shipping_courier || 'Kurir'})</span>
+                  <span>{formatPrice(detailModalOrder.shipping_cost || 0)}</span>
+                </div>
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: '8px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700 }}>
+                  <span>Total Pembayaran</span>
+                  <span style={{ color: 'var(--green)' }}>{formatPrice(detailModalOrder.harga_bayar || detailModalOrder.total_bayar)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Pengiriman & Catatan */}
+            <div style={{ marginBottom: '16px', fontSize: '12px', color: 'var(--text)' }}>
+              <h5 style={{ margin: '0 0 8px', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)' }}>
+                Detail Pengiriman &amp; Metode
+              </h5>
+              <div style={{ border: '1px solid var(--line)', borderRadius: '12px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div><b>Metode Pembayaran:</b> {(detailModalOrder.payment_method || 'COD').toUpperCase()}</div>
+                <div><b>Tipe Pengiriman:</b> {detailModalOrder.delivery_type === 'delivery' || detailModalOrder.delivery_type === 'antar' ? 'Antar Alamat (Kirim Jarak)' : 'COD Kampus'}</div>
+                {detailModalOrder.shipping_address && (
+                  <div><b>Alamat Tujuan:</b> {detailModalOrder.shipping_address}{detailModalOrder.kode_pos ? ` (${detailModalOrder.kode_pos})` : ''}</div>
+                )}
+                {detailModalOrder.cod_location && (
+                  <div><b>Titik Temu COD:</b> {detailModalOrder.cod_location}</div>
+                )}
+                {detailModalOrder.catatan && (
+                  <div><b>Catatan Pembeli:</b> "{detailModalOrder.catatan}"</div>
+                )}
+              </div>
+            </div>
+
+            {/* Riwayat / Timeline */}
+            {Array.isArray(detailModalOrder.history) && detailModalOrder.history.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <h5 style={{ margin: '0 0 8px', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--muted)' }}>
+                  Riwayat Transaksi (Audit Trail)
+                </h5>
+                <div style={{ border: '1px solid var(--line)', borderRadius: '12px', padding: '10px 14px', maxHeight: '130px', overflowY: 'auto', fontSize: '11px' }}>
+                  {detailModalOrder.history.map((h, i) => (
+                    <div key={i} style={{ borderBottom: i < detailModalOrder.history.length - 1 ? '1px dashed var(--line)' : 'none', padding: '6px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)' }}>
+                        <b>{h.action}</b>
+                        <small>{h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : '-'}</small>
+                      </div>
+                      <div style={{ color: 'var(--text)', marginTop: '2px' }}>{h.notes || h.note || '-'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: '14px' }}>
+              {(detailModalOrder.status === 'pending' || detailModalOrder.payment_status === 'unpaid') && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ color: '#ef4444', borderColor: '#ef4444' }}
+                  onClick={() => handleCancelOrder(detailModalOrder.id)}
+                >
+                  Batalkan Pesanan
+                </button>
+              )}
+
+              {detailModalOrder.payment_status === 'unpaid' && (detailModalOrder.payment_method || '').toUpperCase() !== 'COD' && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const ord = detailModalOrder
+                    setDetailModalOrder(null)
+                    setPayingOrder(ord)
+                  }}
+                >
+                  Bayar Sekarang via Midtrans ↗
+                </button>
+              )}
+
+              <button type="button" className="btn btn-outline" onClick={() => setDetailModalOrder(null)}>
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

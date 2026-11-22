@@ -18,6 +18,25 @@ import {
   Clock,
   FileSignature,
   Headphones,
+  Eye,
+  CreditCard,
+  Truck,
+  Calendar,
+  DollarSign,
+  Filter,
+  CheckCircle2,
+  AlertCircle,
+  MapPin,
+  Banknote,
+  User,
+  Store,
+  ChevronDown,
+  Layers,
+  RotateCw,
+  XCircle,
+  CheckCircle,
+  AlertTriangle,
+  Shield,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
@@ -34,6 +53,154 @@ const DEFAULT_WEEK = [
   { day: 'Sab', count: 0, pct: 8 },
   { day: 'Min', count: 0, pct: 8 },
 ]
+
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'unpaid', label: 'Menunggu Bayar', icon: Clock, color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  { value: 'paid', label: 'Lunas (Paid)', icon: CheckCircle2, color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+  { value: 'failed', label: 'Gagal', icon: XCircle, color: '#b91c1c', bg: '#fef2f2', border: '#fca5a5' },
+  { value: 'expired', label: 'Kedaluwarsa', icon: AlertCircle, color: '#64748b', bg: '#f8fafc', border: '#cbd5e1' },
+  { value: 'refunded', label: 'Refund', icon: RotateCw, color: '#6d28d9', bg: '#f5f3ff', border: '#c4b5fd' },
+]
+
+const SHIPPING_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Menunggu', icon: Clock, color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  { value: 'processing', label: 'Sedang Diproses', icon: RotateCw, color: '#6d28d9', bg: '#f5f3ff', border: '#c4b5fd' },
+  { value: 'shipped', label: 'Sedang Dikirim', icon: Truck, color: '#1d4ed8', bg: '#eff6ff', border: '#93c5fd' },
+  { value: 'delivered', label: 'Sampai (Selesai)', icon: CheckCircle2, color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+  { value: 'cancelled', label: 'Dibatalkan', icon: XCircle, color: '#b91c1c', bg: '#fef2f2', border: '#fca5a5' },
+]
+
+function CustomStatusDropdown({
+  value,
+  options,
+  onChange,
+  isOpen,
+  onToggle,
+  direction = 'down',
+  width = '100%',
+}) {
+  const currentOption = options.find((opt) => opt.value === value) || {
+    value,
+    label: value || 'Status',
+    icon: Clock,
+    color: '#64748b',
+    bg: '#f8fafc',
+    border: '#cbd5e1',
+  }
+  const IconComponent = currentOption.icon
+
+  return (
+    <div className="custom-status-dropdown-wrap" style={{ position: 'relative', width, minWidth: '150px' }}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
+        style={{
+          width: '100%',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '6px',
+          padding: '6px 11px',
+          borderRadius: '99px',
+          background: currentOption.bg,
+          border: `1.5px solid ${currentOption.border}`,
+          color: currentOption.color,
+          fontSize: '11px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          outline: 'none',
+          boxShadow: isOpen ? `0 0 0 2px ${currentOption.border}` : 'none',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <IconComponent size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+          <span>{currentOption.label}</span>
+        </span>
+        <ChevronDown
+          size={12}
+          strokeWidth={2.4}
+          style={{
+            flexShrink: 0,
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s cubic-bezier(0.2, 0, 0, 1)',
+          }}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            [direction === 'up' ? 'bottom' : 'top']: 'calc(100% + 6px)',
+            left: 0,
+            minWidth: '180px',
+            width: 'max-content',
+            background: '#ffffff',
+            borderRadius: '14px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.15), 0 4px 10px rgba(15, 23, 42, 0.05)',
+            padding: '6px',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+          }}
+        >
+          {options.map((opt) => {
+            const isSelected = opt.value === value
+            const OptIcon = opt.icon
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value)
+                  onToggle()
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  padding: '7px 10px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isSelected ? opt.bg : 'transparent',
+                  color: isSelected ? opt.color : '#334155',
+                  fontSize: '11px',
+                  fontWeight: isSelected ? 700 : 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.12s ease',
+                  width: '100%',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = '#f8fafc'
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <OptIcon size={13} strokeWidth={2.4} style={{ color: opt.color, flexShrink: 0 }} />
+                  <span>{opt.label}</span>
+                </span>
+                {isSelected && (
+                  <Check size={12} strokeWidth={2.6} style={{ color: opt.color, flexShrink: 0 }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth()
@@ -61,6 +228,8 @@ export default function AdminDashboard() {
   const [userFilter, setUserFilter] = useState('all')
   const [ordersList, setOrdersList] = useState([])
   const [searchUser, setSearchUser] = useState('')
+  const [searchOrder, setSearchOrder] = useState('')
+  const [orderFilter, setOrderFilter] = useState('all') // 'all', 'unpaid', 'paid', 'cod', 'delivery', 'cancelled'
 
   // Admin add product state
   const [showAddProduct, setShowAddProduct] = useState(false)
@@ -70,6 +239,7 @@ export default function AdminDashboard() {
     kondisi: 'Good',
     harga: '',
     harga_asli: '',
+    stok: 1,
     lokasi: 'KampusLoop',
     cod_lokasi: '',
     foto_url: '',
@@ -133,10 +303,20 @@ export default function AdminDashboard() {
       bank_account_name: '',
       cod_locations: 'Perpustakaan Pusat, Kantin Fakultas, Gerbang Utama Kampus',
     },
+    shipping_config: {
+      base_rate: 5000,
+      rate_per_km: 2000,
+      min_shipping_cost: 8000,
+      courier_name: 'KampusLoop Express (Kurir Kampus)',
+      provider: 'distance_matrix',
+      active: true,
+    },
   })
   const [uploadingAdminQris, setUploadingAdminQris] = useState(false)
   const [savingWebSettings, setSavingWebSettings] = useState(false)
   const [applyCodToAdminProducts, setApplyCodToAdminProducts] = useState(true)
+  const [selectedOrderAudit, setSelectedOrderAudit] = useState(null)
+  const [openStatusDropdown, setOpenStatusDropdown] = useState(null)
 
   // Articles CRUD state (Admin Web only)
   const [articlesList, setArticlesList] = useState([])
@@ -154,6 +334,26 @@ export default function AdminDashboard() {
   const [editingArticle, setEditingArticle] = useState(null)
   const [uploadingEditArticleImg, setUploadingEditArticleImg] = useState(false)
   const [savingEditArticle, setSavingEditArticle] = useState(false)
+
+  // Close dropdown on click outside or escape key
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      if (!e.target.closest('.custom-status-dropdown-wrap')) {
+        setOpenStatusDropdown(null)
+      }
+    }
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setOpenStatusDropdown(null)
+      }
+    }
+    document.addEventListener('click', handleGlobalClick)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('click', handleGlobalClick)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   const loadAdminData = useCallback(async () => {
     try {
@@ -174,7 +374,13 @@ export default function AdminDashboard() {
         setUsersList(Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.results || []))
       }
       if (ordersRes?.data) {
-        setOrdersList(Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.results || []))
+        const freshOrders = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.results || [])
+        setOrdersList(freshOrders)
+        setSelectedOrderAudit((current) => {
+          if (!current) return null
+          const updated = freshOrders.find((x) => x.id === current.id)
+          return updated ? { ...current, ...updated } : current
+        })
       }
       if (settingsRes?.data) {
         setWebSettings((prev) => ({ ...prev, ...settingsRes.data }))
@@ -235,6 +441,7 @@ export default function AdminDashboard() {
         kondisi: 'Good',
         harga: '',
         harga_asli: '',
+        stok: 1,
         lokasi: 'KampusLoop',
         cod_lokasi: '',
         foto_url: '',
@@ -263,6 +470,7 @@ export default function AdminDashboard() {
         lokasi: editingProduct.lokasi,
         cod_lokasi: editingProduct.cod_lokasi || '',
         status: editingProduct.status,
+        stok: editingProduct.stok,
         foto_url: editingProduct.foto_url,
         deskripsi: editingProduct.deskripsi,
       })
@@ -449,6 +657,42 @@ export default function AdminDashboard() {
       window.dispatchEvent(new CustomEvent('kampusloop:dataUpdated'))
     } catch (err) {
       showToast(err.response?.data?.error || 'Gagal memperbarui status pesanan.')
+    }
+  }
+
+  const handleOrderPaymentStatusChange = async (orderId, payment_status) => {
+    try {
+      setSelectedOrderAudit((prev) => (prev && prev.id === orderId ? { ...prev, payment_status } : prev))
+      const res = await api.put(`/admin/pesanan/${orderId}/status/`, { payment_status })
+      showToast(res.data.message || 'Status pembayaran diperbarui.')
+      await loadAdminData()
+      window.dispatchEvent(new CustomEvent('kampusloop:dataUpdated'))
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Gagal memperbarui status pembayaran.')
+    }
+  }
+
+  const handleOrderShippingStatusChange = async (orderId, shipping_status) => {
+    try {
+      setSelectedOrderAudit((prev) => (prev && prev.id === orderId ? { ...prev, shipping_status } : prev))
+      const res = await api.put(`/admin/pesanan/${orderId}/status/`, { shipping_status })
+      showToast(res.data.message || 'Status pengiriman diperbarui.')
+      await loadAdminData()
+      window.dispatchEvent(new CustomEvent('kampusloop:dataUpdated'))
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Gagal memperbarui status pengiriman.')
+    }
+  }
+
+  const handleSettleCodFee = async (orderId) => {
+    try {
+      setSelectedOrderAudit((prev) => (prev && prev.id === orderId ? { ...prev, cod_fee_status: 'paid' } : prev))
+      const res = await api.post(`/admin/pesanan/${orderId}/settle-cod-fee/`)
+      showToast(res.data.message || 'Tagihan fee COD penjual berhasil ditandai LUNAS.')
+      await loadAdminData()
+      window.dispatchEvent(new CustomEvent('kampusloop:dataUpdated'))
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Gagal mengubah status tagihan fee COD.')
     }
   }
 
@@ -724,10 +968,28 @@ export default function AdminDashboard() {
             <div>
               <span className="eyebrow">Platform management</span>
               <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>Admin Overview</span>
+                <span>
+                  {activeTab === 'transactions'
+                    ? 'Transaksi Marketplace'
+                    : activeTab === 'products'
+                      ? 'Katalog Produk'
+                      : activeTab === 'users'
+                        ? 'Pengguna & Moderasi'
+                        : activeTab === 'artikel'
+                          ? 'Kelola Artikel'
+                          : activeTab === 'reports'
+                            ? 'Laporan Marketplace'
+                            : activeTab === 'settings'
+                              ? 'Pengaturan Website & Ongkir'
+                              : 'Admin Overview'}
+                </span>
                 <Sparkles size={20} style={{ color: 'var(--green)' }} />
               </h1>
-              <p>Monitor aktivitas, moderasi barang, validasi penjual, dan performa marketplace KampusLoop.</p>
+              <p>
+                {activeTab === 'transactions'
+                  ? 'Monitor pesanan e-commerce, status pembayaran Midtrans, biaya layanan platform 2%, dan pengiriman produk.'
+                  : 'Monitor aktivitas, moderasi barang, validasi penjual, dan performa marketplace KampusLoop.'}
+              </p>
             </div>
             <div className="dash-top-actions">
               <span className="admin-live-dot">SYSTEM ONLINE</span>
@@ -821,7 +1083,10 @@ export default function AdminDashboard() {
                 {pendingSellers.length > 0 && (
                   <div style={{ marginBottom: '22px', padding: '16px 20px', background: '#fff', border: '1px solid var(--line)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div>
-                      <span className="status-pill status-orange">⏳ {pendingSellers.length} Pengajuan Penjual Baru</span>
+                      <span className="status-pill status-orange" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <Clock size={11} strokeWidth={2.2} />
+                        <span>{pendingSellers.length} Pengajuan Penjual Baru</span>
+                      </span>
                       <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--muted)' }}>
                         Ada mahasiswa yang mengunggah berkas validasi & surat perjanjian untuk menjadi Penjual.
                       </p>
@@ -1002,6 +1267,17 @@ export default function AdminDashboard() {
                           </select>
                         </div>
                         <div className="field">
+                          <label>Jumlah Stok / Quantity</label>
+                          <input
+                            type="number"
+                            min="0"
+                            required
+                            placeholder="Contoh: 1"
+                            value={newProduct.stok ?? 1}
+                            onChange={(e) => setNewProduct({ ...newProduct, stok: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div className="field">
                           <label>Lokasi / Kampus</label>
                           <input
                             placeholder="Contoh: Makassar"
@@ -1102,7 +1378,7 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                   <div className="dash-search" style={{ margin: 0, maxWidth: '240px' }}>
-                    <span>⌕</span>
+                    <Search size={14} style={{ color: '#94a3b8' }} />
                     <input
                       placeholder="Cari produk katalog..."
                       value={searchProduct}
@@ -1129,11 +1405,23 @@ export default function AdminDashboard() {
                             <span className={`status-pill ${
                               p.status === 'approved' ? 'status-green' :
                               p.status === 'pending' ? 'status-orange' :
-                              p.status === 'sold' ? 'status-pill' : 'status-red'
-                            }`} style={p.status === 'rejected' ? { background: '#fee2e2', color: '#991b1b' } : {}}>
+                              p.status === 'sold' ? 'status-red' : 'status-red'
+                            }`} style={p.status === 'sold' ? { background: '#fee2e2', color: '#991b1b', fontWeight: 800 } : (p.status === 'rejected' ? { background: '#fee2e2', color: '#991b1b' } : {})}>
                               {p.status === 'approved' ? 'Aktif di Katalog' :
                                p.status === 'pending' ? 'Menunggu Review' :
-                               p.status === 'sold' ? 'Terjual' : 'Ditolak'}
+                               p.status === 'sold' ? 'Habis (Sold Out)' : 'Ditolak'}
+                            </span>
+                            <span
+                              className="status-pill"
+                              style={{
+                                fontSize: '9px',
+                                background: (p.stok === 0 || p.status === 'sold') ? '#fef2f2' : '#f0fdf4',
+                                color: (p.stok === 0 || p.status === 'sold') ? '#b91c1c' : '#15803d',
+                                border: '1px solid ' + ((p.stok === 0 || p.status === 'sold') ? '#fecdd3' : '#bbf7d0'),
+                                fontWeight: 800,
+                              }}
+                            >
+                              Stok: {p.stok ?? (p.status === 'sold' ? 0 : 1)}
                             </span>
                             <span className="status-pill status-orange" style={{ fontSize: '9px' }}>{p.kondisi}</span>
                             <span style={{ fontSize: '10px', color: 'var(--muted)' }}>{p.kategori}</span>
@@ -1426,84 +1714,492 @@ export default function AdminDashboard() {
             )}
 
             {/* ─── TAB: TRANSAKSI ─────────────────────────────────── */}
-            {activeTab === 'transactions' && (
-              <div className="dash-panel active">
-                <div className="dash-section-row page-dash-heading">
-                  <div>
-                    <span className="eyebrow">Commerce activity</span>
-                    <h2>Transaksi marketplace</h2>
-                    <p>Semua pesanan dan transaksi COD sesama mahasiswa dari database Supabase.</p>
-                  </div>
-                  <span className="status-pill status-green">Live Data</span>
-                </div>
+            {activeTab === 'transactions' && (() => {
+              const totalOrdersCount = ordersList.length
+              const totalPaidRevenue = ordersList
+                .filter((o) => o.payment_status === 'paid' || o.status === 'completed')
+                .reduce((sum, o) => sum + (Number(o.service_fee) || 0), 0)
+              const unpaidCount = ordersList.filter(
+                (o) => o.payment_status === 'unpaid' && o.status !== 'cancelled'
+              ).length
+              const codPendingFee = ordersList
+                .filter(
+                  (o) =>
+                    (o.delivery_type === 'cod' || (o.payment_method || '').toUpperCase() === 'COD') &&
+                    o.cod_fee_status !== 'paid'
+                )
+                .reduce((sum, o) => sum + (Number(o.cod_fee_amount || o.service_fee) || 0), 0)
 
-                <div className="dash-table-card">
-                  <div className="table-scroll">
-                    <table className="dash-table">
-                      <thead>
-                        <tr>
-                          <th>ID Pesanan</th>
-                          <th>Pembeli</th>
-                          <th>Produk</th>
-                          <th>Pengiriman & Pembayaran</th>
-                          <th>Nilai</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ordersList.length > 0 ? (
-                          ordersList.map((o) => (
-                            <tr key={o.id}>
-                              <td>
-                                <b>#{o.order_number}</b>
-                              </td>
-                              <td>{o.pembeli_nama || 'Mahasiswa'}</td>
-                              <td>{o.produk_nama}</td>
-                              <td>
-                                <small style={{ display: 'block', fontWeight: 700, color: 'var(--ink)' }}>
-                                  {(o.payment_method || 'COD').toUpperCase()} ·{' '}
-                                  {o.delivery_type === 'delivery' || o.delivery_type === 'antar'
-                                    ? 'Antar Alamat'
-                                    : 'COD'}
-                                </small>
-                                <small style={{ display: 'block', color: 'var(--muted)' }}>
-                                  {o.delivery_type === 'delivery' || o.delivery_type === 'antar'
-                                    ? `${o.shipping_address || '-'}${o.kode_pos ? ` (${o.kode_pos})` : ''}`
-                                    : o.cod_location || '-'}
-                                </small>
-                              </td>
-                              <td>
-                                <b>{formatPrice(o.harga_bayar)}</b>
-                              </td>
-                              <td>
-                                <select
-                                  className="selectbox"
-                                  style={{ fontSize: '10px', padding: '5px 8px' }}
-                                  value={o.status}
-                                  onChange={(e) => handleOrderStatusChange(o.id, e.target.value)}
-                                >
-                                  <option value="pending">Menunggu Konfirmasi</option>
-                                  <option value="confirmed">Dikonfirmasi</option>
-                                  <option value="cod_waiting">Menunggu COD</option>
-                                  <option value="completed">Selesai</option>
-                                  <option value="cancelled">Dibatalkan</option>
-                                </select>
+              const filteredOrders = ordersList.filter((o) => {
+                if (searchOrder.trim()) {
+                  const q = searchOrder.toLowerCase()
+                  const matchNumber = (o.order_number || '').toLowerCase().includes(q)
+                  const matchBuyer = (o.pembeli_nama || '').toLowerCase().includes(q)
+                  const matchSeller = (o.seller_nama || '').toLowerCase().includes(q)
+                  const matchProduct = (o.produk_nama || '').toLowerCase().includes(q)
+                  if (!matchNumber && !matchBuyer && !matchSeller && !matchProduct) return false
+                }
+                if (orderFilter === 'unpaid') {
+                  return o.payment_status === 'unpaid' && o.status !== 'cancelled'
+                }
+                if (orderFilter === 'paid') {
+                  return o.payment_status === 'paid'
+                }
+                if (orderFilter === 'cod') {
+                  return o.delivery_type === 'cod' || (o.payment_method || '').toUpperCase() === 'COD'
+                }
+                if (orderFilter === 'delivery') {
+                  return o.delivery_type === 'delivery' || o.delivery_type === 'antar'
+                }
+                if (orderFilter === 'cancelled') {
+                  return o.status === 'cancelled' || o.payment_status === 'cancelled' || o.shipping_status === 'cancelled'
+                }
+                return true
+              })
+
+              return (
+                <div className="dash-panel active">
+                  {/* Heading & Live Data */}
+                  <div className="dash-section-row page-dash-heading" style={{ marginBottom: '18px' }}>
+                    <div>
+                      <span className="eyebrow">Commerce activity</span>
+                      <h2>Transaksi marketplace</h2>
+                      <p>Kelola seluruh pesanan e-commerce, monitor verifikasi otomatis Midtrans, rincian biaya, dan logistik pengiriman.</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="status-pill status-green" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '6px 12px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />
+                        Live Supabase Data
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Summary Metric Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block' }}>Total Transaksi Tercatat</span>
+                      <strong style={{ fontSize: '20px', color: '#0f172a', display: 'block', marginTop: '4px' }}>{totalOrdersCount} Pesanan</strong>
+                      <small style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, marginTop: '2px', display: 'block' }}>
+                        Semua transaksi mahasiswa
+                      </small>
+                    </div>
+
+                    <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block' }}>Fee Platform Terkumpul (2%)</span>
+                      <strong style={{ fontSize: '20px', color: '#16a34a', display: 'block', marginTop: '4px' }}>{formatPrice(totalPaidRevenue)}</strong>
+                      <small style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                        Pendapatan bersih transaksi lunas
+                      </small>
+                    </div>
+
+                    <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block' }}>Menunggu Pembayaran</span>
+                      <strong style={{ fontSize: '20px', color: unpaidCount > 0 ? '#d97706' : '#0f172a', display: 'block', marginTop: '4px' }}>{unpaidCount} Pesanan</strong>
+                      <small style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                        Perlu verifikasi Midtrans / COD
+                      </small>
+                    </div>
+
+                    <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block' }}>Piutang Fee COD Penjual</span>
+                      <strong style={{ fontSize: '20px', color: codPendingFee > 0 ? '#b91c1c' : '#16a34a', display: 'block', marginTop: '4px' }}>{formatPrice(codPendingFee)}</strong>
+                      <small style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                        {codPendingFee > 0 ? 'Belum disetor ke platform' : 'Semua tagihan COD lunas'}
+                      </small>
+                    </div>
+                  </div>
+
+                  {/* Filter Tabs & Search Toolbar */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {[
+                        { id: 'all', label: 'Semua', count: ordersList.length, icon: Layers },
+                        { id: 'unpaid', label: 'Menunggu Bayar', count: ordersList.filter((o) => o.payment_status === 'unpaid' && o.status !== 'cancelled').length, icon: Clock },
+                        { id: 'paid', label: 'Lunas', count: ordersList.filter((o) => o.payment_status === 'paid').length, icon: CheckCircle2 },
+                        { id: 'cod', label: 'COD Kampus', count: ordersList.filter((o) => o.delivery_type === 'cod' || (o.payment_method || '').toUpperCase() === 'COD').length, icon: Banknote },
+                        { id: 'delivery', label: 'Kurir Jarak', count: ordersList.filter((o) => o.delivery_type === 'delivery' || o.delivery_type === 'antar').length, icon: Truck },
+                        { id: 'cancelled', label: 'Dibatalkan', count: ordersList.filter((o) => o.status === 'cancelled' || o.payment_status === 'cancelled' || o.shipping_status === 'cancelled').length, icon: XCircle },
+                      ].map((tab) => {
+                        const IconComponent = tab.icon
+                        const isActive = orderFilter === tab.id
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setOrderFilter(tab.id)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 13px',
+                              borderRadius: '99px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: isActive ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
+                              background: isActive ? '#f0fdf4' : '#ffffff',
+                              color: isActive ? '#15803d' : '#475569',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <IconComponent size={12} strokeWidth={2.3} />
+                            <span>{tab.label}</span>
+                            <span style={{ opacity: 0.75, fontSize: '10px' }}>({tab.count})</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <div className="dash-search" style={{ minWidth: '260px', height: '38px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#ffffff', padding: '0 12px' }}>
+                      <Search size={14} style={{ color: '#94a3b8' }} />
+                      <input
+                        type="text"
+                        placeholder="Cari ID (#KL-...), pembeli, penjual, barang..."
+                        value={searchOrder}
+                        onChange={(e) => setSearchOrder(e.target.value)}
+                        style={{ fontSize: '11px', border: 'none', outline: 'none', background: 'transparent', width: '100%', color: '#0f172a' }}
+                      />
+                      {searchOrder && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchOrder('')}
+                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', fontSize: '14px' }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Clean Modern Table */}
+                  <div className="dash-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'visible', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
+                    <div className="table-scroll" style={{ overflowX: 'auto', overflowY: 'visible', paddingBottom: filteredOrders.length <= 2 ? '140px' : '40px' }}>
+                      <table className="dash-table" style={{ width: '100%', minWidth: '1050px', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0' }}>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px' }}>ID &amp; Tanggal</th>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px' }}>Pihak Transaksi</th>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px' }}>Produk &amp; Logistik</th>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px' }}>Rincian Biaya &amp; Total</th>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px' }}>Status Pembayaran</th>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px' }}>Status Pengiriman</th>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px' }}>Fee COD Penjual</th>
+                            <th style={{ fontSize: '11px', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', padding: '14px 16px', textAlign: 'center' }}>Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredOrders.length > 0 ? (
+                            filteredOrders.map((o, idx) => {
+                              const isCod = o.delivery_type === 'cod' || (o.payment_method || '').toUpperCase() === 'COD'
+                              const isTripayMethod = !isCod
+
+                              // Payment badge style
+                              const isPaid = o.payment_status === 'paid'
+                              const isPayCancelled = o.payment_status === 'failed' || o.payment_status === 'cancelled' || o.payment_status === 'expired'
+
+                              // Shipping badge style
+                              const shipDelivered = o.shipping_status === 'delivered'
+                              const shipShipped = o.shipping_status === 'shipped'
+                              const shipProcessing = o.shipping_status === 'processing'
+                              const shipCancelled = o.shipping_status === 'cancelled'
+
+                              return (
+                                <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                                  {/* 1. ID & Tanggal */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, fontSize: '12px', color: '#0f172a', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 8px', borderRadius: '6px', width: 'fit-content' }}>
+                                        #{o.order_number}
+                                      </span>
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                        <Calendar size={11} strokeWidth={2.2} style={{ color: '#94a3b8' }} />
+                                        <span>
+                                          {o.tanggal_pesan
+                                            ? new Date(o.tanggal_pesan).toLocaleDateString('id-ID', {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                              })
+                                            : '-'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* 2. Pihak Transaksi */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '150px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                          <User size={12} strokeWidth={2.4} />
+                                        </div>
+                                        <div style={{ lineHeight: 1.2 }}>
+                                          <span style={{ fontWeight: 700, fontSize: '12px', color: '#0f172a', display: 'block' }}>{o.pembeli_nama || 'Mahasiswa'}</span>
+                                          <span style={{ fontSize: '10px', color: '#64748b' }}>Pembeli</span>
+                                        </div>
+                                      </div>
+
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                          <Store size={12} strokeWidth={2.4} />
+                                        </div>
+                                        <div style={{ lineHeight: 1.2 }}>
+                                          <span style={{ fontWeight: 700, fontSize: '12px', color: '#334155', display: 'block' }}>{o.seller_nama || 'Penjual'}</span>
+                                          <span style={{ fontSize: '10px', color: '#64748b' }}>Penjual</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* 3. Produk & Logistik */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: '190px', maxWidth: '240px' }}>
+                                      {o.produk_foto ? (
+                                        <img
+                                          src={o.produk_foto}
+                                          alt=""
+                                          style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid #e2e8f0' }}
+                                        />
+                                      ) : (
+                                        <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', flexShrink: 0 }}>
+                                          <Package size={16} />
+                                        </div>
+                                      )}
+                                      <div style={{ minWidth: 0, flex: 1 }}>
+                                        <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          {o.produk_nama}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px', flexWrap: 'wrap' }}>
+                                          <span
+                                            style={{
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                              fontSize: '10px',
+                                              fontWeight: 700,
+                                              padding: '2px 7px',
+                                              borderRadius: '99px',
+                                              background: isCod ? '#f0fdf4' : '#eff6ff',
+                                              color: isCod ? '#15803d' : '#1d4ed8',
+                                              border: `1px solid ${isCod ? '#bbf7d0' : '#bfdbfe'}`,
+                                            }}
+                                          >
+                                            {isCod ? (
+                                              <>
+                                                <Banknote size={10} strokeWidth={2.4} />
+                                                <span>COD Kampus</span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Truck size={10} strokeWidth={2.4} />
+                                                <span>Kurir ({o.distance_km || 0} km)</span>
+                                              </>
+                                            )}
+                                          </span>
+                                        </div>
+                                        <div
+                                          style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#64748b', marginTop: '3px' }}
+                                          title={isCod ? (o.cod_location || 'Area Kampus') : (o.shipping_address || 'Alamat Kirim')}
+                                        >
+                                          <MapPin size={11} strokeWidth={2.2} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }}>
+                                            {isCod ? (o.cod_location || 'Area Kampus') : (o.shipping_address || 'Alamat Kirim')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* 4. Rincian Biaya & Total */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                    <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', minWidth: '175px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, letterSpacing: '0.5px' }}>Total Bayar</span>
+                                        <span style={{ fontSize: '14px', fontWeight: 900, color: '#0f172a' }}>
+                                          {formatPrice(o.harga_bayar || o.total_bayar)}
+                                        </span>
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#16a34a', fontWeight: 700, borderTop: '1px dashed #cbd5e1', paddingTop: '4px' }}>
+                                        <span>Fee Platform (2%):</span>
+                                        <span>+{formatPrice(o.service_fee || 0)}</span>
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b', marginTop: '2px' }}>
+                                        <span>Subtotal: {formatPrice(o.subtotal_produk || o.harga_bayar)}</span>
+                                        <span>Ongkir: {formatPrice(o.shipping_cost || 0)}</span>
+                                      </div>
+                                      {Boolean(o.midtrans_fee || o.tripay_fee) && !isCod && (o.midtrans_fee > 0 || o.tripay_fee > 0) && (
+                                        <div style={{ fontSize: '10px', color: '#dc2626', display: 'flex', justifyContent: 'space-between', marginTop: '2px', borderTop: '1px dotted #e2e8f0', paddingTop: '2px' }}>
+                                          <span>Midtrans Gateway Fee:</span>
+                                          <span>-{formatPrice(o.midtrans_fee || o.tripay_fee)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* 5. Status Pembayaran (Modern Interactive Custom Dropdown) */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                    <div style={{ minWidth: '155px' }}>
+                                      <CustomStatusDropdown
+                                        value={o.payment_status || 'unpaid'}
+                                        options={PAYMENT_STATUS_OPTIONS}
+                                        onChange={(newVal) => handleOrderPaymentStatusChange(o.id, newVal)}
+                                        isOpen={openStatusDropdown === `${o.id}-payment`}
+                                        onToggle={() =>
+                                          setOpenStatusDropdown(
+                                            openStatusDropdown === `${o.id}-payment` ? null : `${o.id}-payment`
+                                          )
+                                        }
+                                        direction={filteredOrders.length > 2 && idx >= filteredOrders.length - 2 ? 'up' : 'down'}
+                                      />
+
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '10px', color: '#64748b', marginTop: '5px' }}>
+                                        {isTripayMethod ? (
+                                          <>
+                                            <CreditCard size={11} strokeWidth={2.2} style={{ color: '#0284c7' }} />
+                                            <span>Gateway Midtrans</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Banknote size={11} strokeWidth={2.2} style={{ color: '#16a34a' }} />
+                                            <span>Tunai COD</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* 6. Status Pengiriman (Modern Interactive Custom Dropdown) */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                    <div style={{ minWidth: '155px' }}>
+                                      <CustomStatusDropdown
+                                        value={o.shipping_status || 'pending'}
+                                        options={SHIPPING_STATUS_OPTIONS}
+                                        onChange={(newVal) => handleOrderShippingStatusChange(o.id, newVal)}
+                                        isOpen={openStatusDropdown === `${o.id}-shipping`}
+                                        onToggle={() =>
+                                          setOpenStatusDropdown(
+                                            openStatusDropdown === `${o.id}-shipping` ? null : `${o.id}-shipping`
+                                          )
+                                        }
+                                        direction={filteredOrders.length > 2 && idx >= filteredOrders.length - 2 ? 'up' : 'down'}
+                                      />
+
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '10px', color: '#64748b', marginTop: '5px' }}>
+                                        <Truck size={11} strokeWidth={2.2} style={{ color: '#64748b' }} />
+                                        <span>{o.shipping_courier || (isCod ? 'Kurir Kampus' : 'Logistik')}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* 7. Fee COD Penjual */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                    <div style={{ minWidth: '130px' }}>
+                                      {isCod ? (
+                                        o.cod_fee_status === 'paid' ? (
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: '99px' }}>
+                                            <Check size={12} strokeWidth={2.5} />
+                                            <span>Lunas Disetor</span>
+                                          </span>
+                                        ) : (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', padding: '3px 8px', borderRadius: '6px', textAlign: 'center' }}>
+                                              <AlertCircle size={11} strokeWidth={2.2} />
+                                              <span>Tagihan: {formatPrice(o.cod_fee_amount || o.service_fee || 0)}</span>
+                                            </span>
+                                            <button
+                                              type="button"
+                                              className="btn"
+                                              style={{
+                                                fontSize: '10px',
+                                                padding: '4px 8px',
+                                                background: '#16a34a',
+                                                color: '#ffffff',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontWeight: 600,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '4px',
+                                              }}
+                                              onClick={() => handleSettleCodFee(o.id)}
+                                            >
+                                              <Check size={11} strokeWidth={2.4} />
+                                              <span>Tandai Lunas</span>
+                                            </button>
+                                          </div>
+                                        )
+                                      ) : (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#64748b' }}>
+                                          <ShieldCheck size={12} strokeWidth={2.2} style={{ color: '#0284c7' }} />
+                                          <span>Otomatis (Midtrans)</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* 8. Aksi */}
+                                  <td style={{ padding: '14px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-outline"
+                                      style={{
+                                        fontSize: '11px',
+                                        padding: '7px 12px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        whiteSpace: 'nowrap',
+                                        borderRadius: '8px',
+                                        borderColor: '#cbd5e1',
+                                        fontWeight: 600,
+                                        background: '#ffffff',
+                                        cursor: 'pointer',
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setSelectedOrderAudit(o)
+                                      }}
+                                    >
+                                      <Eye size={13} strokeWidth={2.2} />
+                                      <span>Rincian &amp; Log</span>
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan="8" style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                  <Package size={32} style={{ color: '#cbd5e1' }} />
+                                  <span style={{ fontWeight: 600, fontSize: '13px' }}>Tidak ada transaksi yang cocok.</span>
+                                  {(searchOrder || orderFilter !== 'all') && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-outline"
+                                      style={{ fontSize: '11px', padding: '5px 12px', marginTop: '6px' }}
+                                      onClick={() => {
+                                        setSearchOrder('')
+                                        setOrderFilter('all')
+                                      }}
+                                    >
+                                      Reset Filter &amp; Pencarian
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="6" style={{ textAlign: 'center', padding: '28px', color: 'var(--muted)' }}>
-                              Belum ada transaksi pesanan di database.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* ─── TAB: LAPORAN ───────────────────────────────────── */}
             {activeTab === 'reports' && (
@@ -1542,6 +2238,49 @@ export default function AdminDashboard() {
                     <span>Tingkat serapan katalog</span>
                     <strong>{stats.activity_rate ?? 0}%</strong>
                     <small>Produk aktif & terjual di platform</small>
+                  </article>
+                </div>
+
+                {/* Platform Revenue & Financial Breakdown */}
+                <div className="dash-section-row" style={{ marginTop: '28px', marginBottom: '14px' }}>
+                  <div>
+                    <span className="eyebrow" style={{ color: '#16a34a' }}>Platform Revenue & Financial Tracking</span>
+                    <h2 style={{ fontSize: '18px', margin: '4px 0' }}>Arus Kas Pendapatan Platform & Biaya Gateway</h2>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>
+                      Pencatatan transparan Transaction Fee 2%, potongan gateway Midtrans, ongkir kurir, dan tagihan COD ke penjual.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="report-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
+                  <article className="report-card" style={{ borderLeft: '4px solid #16a34a', background: '#f8fdf9' }}>
+                    <span style={{ color: '#15803d', fontWeight: 700 }}>Pendapatan Kotor Platform</span>
+                    <strong style={{ color: '#16a34a', fontSize: '20px' }}>{stats.gross_platform_revenue_formatted || 'Rp0'}</strong>
+                    <small>Biaya layanan 2% subtotal pesanan sukses</small>
+                  </article>
+
+                  <article className="report-card" style={{ borderLeft: '4px solid #dc2626', background: '#fef2f2' }}>
+                    <span style={{ color: '#b91c1c', fontWeight: 700 }}>Biaya Gateway (Midtrans)</span>
+                    <strong style={{ color: '#dc2626', fontSize: '20px' }}>{stats.total_midtrans_fee_formatted || stats.total_tripay_fee_formatted || 'Rp0'}</strong>
+                    <small>Dicatat terpisah dari pendapatan kotor</small>
+                  </article>
+
+                  <article className="report-card" style={{ borderLeft: '4px solid #0284c7', background: '#f0f9ff' }}>
+                    <span style={{ color: '#0369a1', fontWeight: 700 }}>Pendapatan Bersih Platform</span>
+                    <strong style={{ color: '#0284c7', fontSize: '20px' }}>{stats.net_platform_revenue_formatted || 'Rp0'}</strong>
+                    <small>Kotor dikurangi fee payment gateway</small>
+                  </article>
+
+                  <article className="report-card" style={{ borderLeft: '4px solid #d97706', background: '#fffbeb' }}>
+                    <span style={{ color: '#b45309', fontWeight: 700 }}>Piutang Fee COD Penjual</span>
+                    <strong style={{ color: '#d97706', fontSize: '20px' }}>{stats.total_cod_fee_pending_formatted || 'Rp0'}</strong>
+                    <small>Tagihan fee 2% dari pesanan COD kampus</small>
+                  </article>
+
+                  <article className="report-card" style={{ borderLeft: '4px solid #8b5cf6', background: '#faf5ff' }}>
+                    <span style={{ color: '#6d28d9', fontWeight: 700 }}>Total Ongkos Kirim Terkumpul</span>
+                    <strong style={{ color: '#8b5cf6', fontSize: '20px' }}>{stats.total_shipping_volume_formatted || 'Rp0'}</strong>
+                    <small>Bukan pendapatan platform (hak kurir)</small>
                   </article>
                 </div>
 
@@ -1963,7 +2702,125 @@ export default function AdminDashboard() {
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                      {/* Pengaturan Tarif Pengiriman Berdasarkan Jarak */}
+                      <div className="listing-form-card show" style={{ marginTop: '20px', border: '1px solid #bae6fd', background: '#f8fafc' }}>
+                        <div className="dash-section-row">
+                          <div>
+                            <span className="eyebrow" style={{ color: '#0369a1' }}>Distance-Based Courier Rates</span>
+                            <h2 style={{ fontSize: '18px' }}>Pengaturan Tarif Pengiriman Berdasarkan Jarak</h2>
+                            <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted)' }}>
+                              Admin menentukan tarif dasar, tarif per kilometer, dan biaya minimum pengiriman. Ongkir sepenuhnya dibebankan kepada konsumen dan bukan pendapatan platform.
+                            </p>
+                          </div>
+                          <span className="status-pill status-green">Kurir Jarak Aktif</span>
+                        </div>
+
+                        <div className="listing-form" style={{ marginTop: '12px' }}>
+                          <div className="form-row">
+                            <div className="field">
+                              <label>Tarif Dasar Pengiriman (Rp)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={webSettings.shipping_config?.base_rate ?? 5000}
+                                onChange={(e) =>
+                                  setWebSettings((prev) => ({
+                                    ...prev,
+                                    shipping_config: { ...(prev.shipping_config || {}), base_rate: Number(e.target.value) },
+                                  }))
+                                }
+                              />
+                              <small style={{ color: 'var(--muted)', fontSize: '10px' }}>Biaya tetap awal sebelum ditambah hitungan per kilometer</small>
+                            </div>
+                            <div className="field">
+                              <label>Tarif per Kilometer (Rp/km)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={webSettings.shipping_config?.rate_per_km ?? 2000}
+                                onChange={(e) =>
+                                  setWebSettings((prev) => ({
+                                    ...prev,
+                                    shipping_config: { ...(prev.shipping_config || {}), rate_per_km: Number(e.target.value) },
+                                  }))
+                                }
+                              />
+                              <small style={{ color: 'var(--muted)', fontSize: '10px' }}>Dikalikan jarak antara koordinat/lokasi penjual dan pembeli</small>
+                            </div>
+                            <div className="field">
+                              <label>Biaya Minimum Pengiriman (Rp)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={webSettings.shipping_config?.min_shipping_cost ?? 8000}
+                                onChange={(e) =>
+                                  setWebSettings((prev) => ({
+                                    ...prev,
+                                    shipping_config: { ...(prev.shipping_config || {}), min_shipping_cost: Number(e.target.value) },
+                                  }))
+                                }
+                              />
+                              <small style={{ color: 'var(--muted)', fontSize: '10px' }}>Ongkos kirim minimum jika hasil hitungan jarak di bawah batas ini</small>
+                            </div>
+                          </div>
+
+                          <div className="form-row">
+                            <div className="field">
+                              <label>Nama Jasa Pengiriman / Kurir</label>
+                              <input
+                                value={webSettings.shipping_config?.courier_name || 'KampusLoop Express (Kurir Kampus)'}
+                                onChange={(e) =>
+                                  setWebSettings((prev) => ({
+                                    ...prev,
+                                    shipping_config: { ...(prev.shipping_config || {}), courier_name: e.target.value },
+                                  }))
+                                }
+                              />
+                              <small style={{ color: 'var(--muted)', fontSize: '10px' }}>Tampil pada rincian ongkir saat pembeli melakukan checkout</small>
+                            </div>
+                            <div className="field">
+                              <label>Integrasi API Logistik (Modular Provider)</label>
+                              <select
+                                value={webSettings.shipping_config?.provider || 'distance_matrix'}
+                                onChange={(e) =>
+                                  setWebSettings((prev) => ({
+                                    ...prev,
+                                    shipping_config: { ...(prev.shipping_config || {}), provider: e.target.value },
+                                  }))
+                                }
+                              >
+                                <option value="distance_matrix">Jarak Geografis Matrix KampusLoop (Default)</option>
+                                <option value="rajaongkir">RajaOngkir API (Siap Dihubungkan)</option>
+                                <option value="biteship">Biteship Logistics API (Siap Dihubungkan)</option>
+                              </select>
+                              <small style={{ color: 'var(--muted)', fontSize: '10px' }}>Arsitektur sistem modular siap dikembangkan ke kurir logistik pihak ketiga</small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Integrasi Midtrans Gateway Info Card */}
+                      <div className="listing-form-card show" style={{ marginTop: '20px', border: '1px solid #bfdbfe', background: '#f0f9ff' }}>
+                        <div className="dash-section-row">
+                          <div>
+                            <span className="eyebrow" style={{ color: '#0284c7' }}>Payment Gateway Integration</span>
+                            <h2 style={{ fontSize: '18px' }}>Integrasi Midtrans Payment Gateway (Sandbox Mode)</h2>
+                            <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#334155' }}>
+                              Konfigurasi Server Key (<code>SB-Mid-server-23WxZlkaiMPjCfvUrRWHX5PU</code>) tersimpan aman di server backend melalui file <code>.env</code>.
+                            </p>
+                          </div>
+                          <span className="status-pill status-green">Sandbox Ready</span>
+                        </div>
+                        <div style={{ fontSize: '11px', display: 'grid', gap: '6px', marginTop: '12px', color: '#1e293b' }}>
+                          <div><b>Mode:</b> Midtrans Sandbox (Pengujian Transaksi Tanpa Uang Nyata)</div>
+                          <div><b>Metode Didukung:</b> Midtrans QRIS (GoPay, ShopeePay, OVO, Dana), Transfer Virtual Account (BCA, BNI, BRI, Mandiri), dan COD Kampus.</div>
+                          <div><b>Webhook / Notification URL:</b> <code>/api/pesanan/midtrans-notification</code> (Verifikasi tanda tangan SHA512).</div>
+                          <div><b>Platform Transaction Fee:</b> 2% dari subtotal produk (dicatat terpisah dari fee Midtrans & operasional).</div>
+                          <div><b>Aturan COD:</b> Biaya layanan dicatat otomatis sebagai tagihan piutang kepada penjual.</div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                         <button type="submit" className="btn btn-primary" disabled={savingWebSettings || uploadingAdminQris}>
                           {savingWebSettings ? 'Menyimpan...' : 'Simpan Semua Pengaturan Web ↗'}
                         </button>
@@ -2250,15 +3107,42 @@ export default function AdminDashboard() {
                   </select>
                 </div>
                 <div className="field">
+                  <label>Jumlah Stok / Quantity</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editingProduct.stok ?? (editingProduct.status === 'sold' ? 0 : 1)}
+                    onChange={(e) => {
+                      const val = Number(e.target.value)
+                      setEditingProduct({
+                        ...editingProduct,
+                        stok: val,
+                        status: val === 0 ? 'sold' : (editingProduct.status === 'sold' ? 'approved' : editingProduct.status),
+                      })
+                    }}
+                  />
+                  <small style={{ color: 'var(--muted)', fontSize: '10px' }}>
+                    Jika 0 otomatis berstatus Sold/Habis. Tambah stok &gt; 0 agar otomatis aktif kembali di etalase.
+                  </small>
+                </div>
+                <div className="field">
                   <label>Status Katalog</label>
                   <select
                     value={editingProduct.status || 'approved'}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value })}
+                    onChange={(e) => {
+                      const nextStat = e.target.value
+                      setEditingProduct({
+                        ...editingProduct,
+                        status: nextStat,
+                        stok: nextStat === 'sold' ? 0 : (editingProduct.stok === 0 ? 1 : editingProduct.stok),
+                      })
+                    }}
                   >
                     <option value="approved">Aktif di Katalog (Approved)</option>
                     <option value="pending">Menunggu Review (Pending)</option>
                     <option value="rejected">Ditolak / Nonaktif</option>
-                    <option value="sold">Terjual (Sold)</option>
+                    <option value="sold">Habis / Terjual (Sold Out)</option>
                   </select>
                 </div>
               </div>
@@ -2665,6 +3549,304 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ─── MODAL AUDIT LOG & KELOLA TRANSAKSI ─── */}
+      {selectedOrderAudit && (
+        <div
+          className="overlay show"
+          style={{ zIndex: 1200 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedOrderAudit(null)
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="modal"
+            style={{
+              maxWidth: '680px',
+              width: '92%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              borderRadius: '24px',
+              padding: '28px',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.25)',
+              background: '#ffffff',
+              position: 'relative',
+            }}
+          >
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => setSelectedOrderAudit(null)}
+              aria-label="Tutup"
+            >
+              ×
+            </button>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', paddingRight: '36px' }}>
+              <div>
+                <span className="eyebrow" style={{ color: '#0369a1', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <Shield size={12} strokeWidth={2.4} />
+                  <span>Audit Trail &amp; Kelola Pesanan</span>
+                </span>
+                <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '4px 0 2px 0', color: '#0f172a' }}>
+                  Pesanan #{selectedOrderAudit.order_number}
+                </h2>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  Dipesan pada {selectedOrderAudit.tanggal_pesan ? new Date(selectedOrderAudit.tanggal_pesan).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                </div>
+              </div>
+            </div>
+
+            {/* ─── KELOLA STATUS & TINDAKAN TRANSAKSI (MANAGEMENT SECTION) ─── */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '16px',
+                marginBottom: '18px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#dbeafe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ShieldCheck size={16} strokeWidth={2.4} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>Panel Kelola Status Pesanan</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Ubah status pembayaran, update progres pengiriman, atau konfirmasi setoran fee COD.</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                {/* 1. Status Pembayaran Management */}
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                    Status Pembayaran:
+                  </label>
+                  <CustomStatusDropdown
+                    value={selectedOrderAudit.payment_status || 'unpaid'}
+                    options={PAYMENT_STATUS_OPTIONS}
+                    onChange={(newVal) => handleOrderPaymentStatusChange(selectedOrderAudit.id, newVal)}
+                    isOpen={openStatusDropdown === 'modal-payment'}
+                    onToggle={() => setOpenStatusDropdown(openStatusDropdown === 'modal-payment' ? null : 'modal-payment')}
+                    width="100%"
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#64748b', marginTop: '6px' }}>
+                    {selectedOrderAudit.delivery_type !== 'cod' ? (
+                      <>
+                        <CreditCard size={11} strokeWidth={2.2} style={{ color: '#0284c7' }} />
+                        <span>Midtrans ({selectedOrderAudit.midtrans_payment_type || selectedOrderAudit.tripay_payment_method || 'Online Payment'})</span>
+                      </>
+                    ) : (
+                      <>
+                        <Banknote size={11} strokeWidth={2.2} style={{ color: '#16a34a' }} />
+                        <span>Tunai COD (Serah Terima Kampus)</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Status Pengiriman Management */}
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                    Status Pengiriman:
+                  </label>
+                  <CustomStatusDropdown
+                    value={selectedOrderAudit.shipping_status || 'pending'}
+                    options={SHIPPING_STATUS_OPTIONS}
+                    onChange={(newVal) => handleOrderShippingStatusChange(selectedOrderAudit.id, newVal)}
+                    isOpen={openStatusDropdown === 'modal-shipping'}
+                    onToggle={() => setOpenStatusDropdown(openStatusDropdown === 'modal-shipping' ? null : 'modal-shipping')}
+                    width="100%"
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#64748b', marginTop: '6px' }}>
+                    <Truck size={11} strokeWidth={2.2} style={{ color: '#64748b' }} />
+                    <span>{selectedOrderAudit.shipping_courier || 'Kurir Kampus'} ({selectedOrderAudit.distance_km || 0} km)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Aksi Khusus Fee COD Penjual */}
+              {selectedOrderAudit.delivery_type === 'cod' && (
+                <div style={{ marginTop: '12px', padding: '12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <AlertCircle size={13} strokeWidth={2.4} />
+                        <span>Tagihan Biaya Layanan Platform 2% (COD):</span>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#b45309', marginTop: '2px' }}>
+                        {formatPrice(selectedOrderAudit.cod_fee_amount || selectedOrderAudit.service_fee || 0)}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#92400e', marginTop: '2px' }}>
+                        Karena COD dibayar tunai oleh pembeli ke penjual, fee platform ditagihkan ke penjual.
+                      </div>
+                    </div>
+                    {selectedOrderAudit.cod_fee_status === 'paid' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 700, color: '#15803d', background: '#f0fdf4', border: '1px solid #86efac', padding: '6px 12px', borderRadius: '99px' }}>
+                        <CheckCircle2 size={13} strokeWidth={2.5} />
+                        <span>Lunas Disetor</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{
+                          fontSize: '11px',
+                          padding: '7px 14px',
+                          background: '#16a34a',
+                          color: '#ffffff',
+                          borderRadius: '8px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                        onClick={() => handleSettleCodFee(selectedOrderAudit.id)}
+                      >
+                        <Check size={13} strokeWidth={2.6} />
+                        <span>Tandai Lunas Disetor</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Informasi Produk & Pihak Transaksi */}
+            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                {selectedOrderAudit.produk_foto ? (
+                  <img
+                    src={selectedOrderAudit.produk_foto}
+                    alt=""
+                    style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #e2e8f0', flexShrink: 0 }}
+                  />
+                ) : (
+                  <div style={{ width: '48px', height: '48px', borderRadius: '10px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', flexShrink: 0 }}>
+                    <Package size={20} />
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>{selectedOrderAudit.produk_nama}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                    Harga Produk: {formatPrice(selectedOrderAudit.subtotal_produk || selectedOrderAudit.harga_bayar)}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '11px' }}>
+                <div>
+                  <span style={{ color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Pembeli:</span>
+                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{selectedOrderAudit.pembeli_nama || 'Mahasiswa'}</div>
+                  {selectedOrderAudit.titik_antar && (
+                    <div style={{ color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={11} strokeWidth={2.2} style={{ color: '#ef4444' }} />
+                      <span>{selectedOrderAudit.titik_antar}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <span style={{ color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Penjual:</span>
+                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{selectedOrderAudit.seller_nama || 'Penjual Kampus'}</div>
+                  {selectedOrderAudit.lokasi_penjual && (
+                    <div style={{ color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={11} strokeWidth={2.2} style={{ color: '#16a34a' }} />
+                      <span>{selectedOrderAudit.lokasi_penjual}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Rincian Finansial & Parameter Jarak */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', marginBottom: '18px', fontSize: '12px' }}>
+              <div style={{ fontWeight: 800, marginBottom: '10px', color: '#0f172a' }}>Rincian Finansial Transaksi</div>
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--muted)' }}>Subtotal Produk:</span>
+                  <b>{formatPrice(selectedOrderAudit.subtotal_produk || selectedOrderAudit.harga_bayar)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--muted)' }}>Biaya Layanan Platform (2%):</span>
+                  <b style={{ color: '#16a34a' }}>+{formatPrice(selectedOrderAudit.service_fee || 0)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--muted)' }}>
+                    Ongkos Kirim ({selectedOrderAudit.distance_km || 0} km · {selectedOrderAudit.shipping_courier || 'Kurir'}):
+                  </span>
+                  <b>{formatPrice(selectedOrderAudit.shipping_cost || 0)}</b>
+                </div>
+                {Boolean(selectedOrderAudit.midtrans_fee || selectedOrderAudit.tripay_fee) && selectedOrderAudit.delivery_type !== 'cod' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                    <span style={{ color: 'var(--muted)' }}>Biaya Gateway (Midtrans):</span>
+                    <span style={{ color: '#dc2626' }}>-{formatPrice(selectedOrderAudit.midtrans_fee || selectedOrderAudit.tripay_fee)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: '8px', marginTop: '4px', fontSize: '14px' }}>
+                  <strong>Total Pembayaran Konsumen:</strong>
+                  <strong style={{ color: 'var(--green)' }}>{formatPrice(selectedOrderAudit.harga_bayar)}</strong>
+                </div>
+              </div>
+
+              {(selectedOrderAudit.midtrans_transaction_id || selectedOrderAudit.tripay_reference) && (
+                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dotted #e2e8f0', fontSize: '11px', color: 'var(--muted)' }}>
+                  <div>Ref Midtrans: <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{selectedOrderAudit.midtrans_transaction_id || selectedOrderAudit.tripay_reference}</code></div>
+                  <div style={{ marginTop: '2px' }}>Metode: <b>{selectedOrderAudit.midtrans_payment_type || selectedOrderAudit.tripay_payment_method}</b></div>
+                </div>
+              )}
+            </div>
+
+            {/* Riwayat Log & Linimasa Transaksi */}
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '13px', marginBottom: '10px', color: '#0f172a' }}>Linimasa Riwayat &amp; Log Transaksi</div>
+              <div style={{ display: 'grid', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                {(Array.isArray(selectedOrderAudit.history) && selectedOrderAudit.history.length > 0) ? (
+                  selectedOrderAudit.history.map((log, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '10px 12px',
+                        background: '#f8fafc',
+                        borderLeft: '3px solid #0284c7',
+                        borderRadius: '0 8px 8px 0',
+                        fontSize: '11px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                        <b style={{ color: '#0369a1' }}>{log.action}</b>
+                        <small style={{ color: 'var(--muted)' }}>
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID') : '-'}
+                        </small>
+                      </div>
+                      <div style={{ color: '#334155' }}>{log.notes || 'Status diperbarui'}</div>
+                      <small style={{ color: 'var(--muted)', fontSize: '9px' }}>Aktor: {log.actor || 'system'}</small>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: 'var(--muted)', fontSize: '11px' }}>Belum ada riwayat aktivitas tercatat.</p>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ fontSize: '12px', padding: '8px 16px', borderRadius: '10px' }}
+                onClick={() => setSelectedOrderAudit(null)}
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

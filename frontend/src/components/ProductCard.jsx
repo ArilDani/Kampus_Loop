@@ -39,13 +39,23 @@ export default function ProductCard({ product }) {
     }
   }
 
+  const isSold = Boolean(product && (product.status === 'sold' || (product.stok !== undefined && Number(product.stok) === 0)))
+
   const handleAddToCart = (e) => {
     e.stopPropagation()
+    if (isSold) {
+      showToast('Mohon maaf, stok produk ini sedang habis.')
+      return
+    }
     addToCart(product)
   }
 
   const handleBuyNow = (e) => {
     e.stopPropagation()
+    if (isSold) {
+      showToast('Mohon maaf, stok produk ini sedang habis.')
+      return
+    }
     if (!user) {
       showToast('Silakan masuk atau daftar sebagai user terlebih dahulu untuk membeli.')
       navigate('/auth?mode=login')
@@ -74,7 +84,13 @@ export default function ProductCard({ product }) {
       {/* Product Image & Badges */}
       <div className="product-image">
         <img loading="lazy" src={imageSrc} alt={product.nama || product.name} />
-        <span className="product-badge">{product.kondisi || product.condition || 'Good'}</span>
+        {isSold ? (
+          <span className="product-badge" style={{ background: '#dc2626', color: '#fff', fontWeight: 700 }}>
+            Habis / Sold
+          </span>
+        ) : (
+          <span className="product-badge">{product.kondisi || product.condition || 'Good'}</span>
+        )}
 
         {/* Wishlist Button */}
         <button
@@ -121,25 +137,33 @@ export default function ProductCard({ product }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button
-              type="button"
-              className="mini-buy"
-              onClick={handleBuyNow}
-              title="Beli langsung"
-            >
-              Beli
-            </button>
-            <button
-              type="button"
-              className="mini-add"
-              onClick={handleAddToCart}
-              aria-label="Tambah ke keranjang"
-              title="Tambah ke keranjang"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
+            {isSold ? (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 600, padding: '4px 8px', background: '#fee2e2', borderRadius: '6px' }}>
+                Habis
+              </span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="mini-buy"
+                  onClick={handleBuyNow}
+                  title="Beli langsung"
+                >
+                  Beli
+                </button>
+                <button
+                  type="button"
+                  className="mini-add"
+                  onClick={handleAddToCart}
+                  aria-label="Tambah ke keranjang"
+                  title="Tambah ke keranjang"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

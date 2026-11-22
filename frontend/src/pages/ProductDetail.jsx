@@ -51,8 +51,13 @@ export default function ProductDetail() {
   }, [allProducts, product, similarProducts])
 
   const formatPrice = (p) => 'Rp' + Number(p || 0).toLocaleString('id-ID')
+  const isSold = Boolean(product && (product.status === 'sold' || (product.stok !== undefined && Number(product.stok) === 0)))
 
   const handleBuyNow = () => {
+    if (isSold) {
+      showToast('Mohon maaf, stok produk ini sedang habis.')
+      return
+    }
     if (!user) {
       showToast('Silakan masuk atau daftar sebagai user terlebih dahulu untuk memesan.')
       navigate('/auth?mode=login')
@@ -145,6 +150,15 @@ export default function ProductDetail() {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' }}>
               <span className="article-cat">{product.kategori}</span>
               <span className="status-pill status-green">{product.kondisi}</span>
+              {isSold ? (
+                <span className="status-pill status-red" style={{ fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>
+                  Habis / Sold Out
+                </span>
+              ) : (
+                <span className="status-pill status-green" style={{ fontSize: '11px' }}>
+                  Stok: {product.stok ?? 1} unit
+                </span>
+              )}
               <small style={{ color: 'var(--muted)', fontSize: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <Eye size={12} /> {product.dilihat || 0} kali dilihat
               </small>
@@ -219,13 +233,21 @@ export default function ProductDetail() {
 
             {/* Actions */}
             <div className="product-detail-actions">
-              <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={handleBuyNow}>
-                Beli Sekarang ↗
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1, ...(isSold ? { opacity: 0.5, cursor: 'not-allowed', background: '#94a3b8' } : {}) }}
+                onClick={handleBuyNow}
+                disabled={isSold}
+              >
+                {isSold ? 'Stok Habis' : 'Beli Sekarang ↗'}
               </button>
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => addToCart(product)}
+                disabled={isSold}
+                style={isSold ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                onClick={() => !isSold && addToCart(product)}
               >
                 + Keranjang
               </button>

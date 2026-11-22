@@ -14,6 +14,10 @@ export function CartProvider({ children }) {
   }
 
   const addToCart = (produk) => {
+    if (produk.status === 'sold' || (produk.stok !== undefined && Number(produk.stok) === 0)) {
+      showToast(`Mohon maaf, "${produk.nama}" sudah habis / terjual.`)
+      return
+    }
     const exists = cartItems.find(i => i.id === produk.id)
     if (!exists) {
       setCartItems(prev => [...prev, produk])

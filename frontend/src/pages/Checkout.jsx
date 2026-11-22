@@ -1,8 +1,20 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { MapPin, Handshake, Truck, Banknote, QrCode, Landmark, CheckCircle2 } from 'lucide-react'
+import {
+  MapPin,
+  Handshake,
+  Truck,
+  Banknote,
+  QrCode,
+  Landmark,
+  CheckCircle2,
+  Sparkles,
+  Info,
+  CreditCard,
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
+import MidtransPaymentModal from '../components/MidtransPaymentModal'
 import api from '../api'
 
 export default function Checkout() {
@@ -24,12 +36,15 @@ export default function Checkout() {
   useEffect(() => {
     if (!primaryItem?.id) return
     let active = true
-    api.get(`/produk/${primaryItem.id}/`)
+    api
+      .get(`/produk/${primaryItem.id}/`)
       .then((res) => {
         if (active && res.data) setFreshProduct(res.data)
       })
       .catch(() => {})
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [primaryItem?.id])
 
   const primaryProduct = freshProduct || primaryItem
@@ -51,7 +66,10 @@ export default function Checkout() {
 
   const codSuggestions = useMemo(() => {
     const raw = primaryProduct?.cod_lokasi || paymentOpts.cod_locations || ''
-    return raw.split(',').map((s) => s.trim()).filter(Boolean)
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
   }, [primaryProduct, paymentOpts])
 
   const [deliveryType, setDeliveryType] = useState('cod') // 'cod' | 'delivery'
@@ -63,10 +81,11 @@ export default function Checkout() {
       setCodLocation(codSuggestions[0])
     }
   }, [codSuggestions, codEditedByUser])
+
   const [koordinat, setKoordinat] = useState('')
   const [locatingGps, setLocatingGps] = useState(false)
 
-  // Shopee-style full delivery address
+  // Full delivery address
   const [address, setAddress] = useState({
     nama_penerima: user?.nama || user?.name || '',
     telp: user?.telp || '',
@@ -79,18 +98,22 @@ export default function Checkout() {
   })
   const [saveAddressToProfile, setSaveAddressToProfile] = useState(true)
 
-  // Payment method selection
-  const availableMethods = useMemo(() => {
-    const list = []
-    if (paymentOpts.cod_enabled !== false) list.push('COD')
-    if (paymentOpts.qris_enabled) list.push('QRIS')
-    if (paymentOpts.bank_enabled) list.push('Transfer Bank')
-    return list.length > 0 ? list : ['COD']
-  }, [paymentOpts])
-
-  const [paymentMethod, setPaymentMethod] = useState(availableMethods[0] || 'COD')
+  // Payment method exclusively handled by Midtrans Sandbox Gateway
+  const paymentMethod = 'MIDTRANS'
   const [catatan, setCatatan] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Real-time backend distance & shipping rate calculation
+  const [calcData, setCalcData] = useState({
+    distance_km: 0,
+    shipping_cost: 0,
+    service_fee: 0,
+    courier_name: 'KampusLoop Express (Kurir Kampus)',
+  })
+  const [calculating, setCalculating] = useState(false)
+
+  // Post-checkout modal for Midtrans
+  const [createdMidtransOrder, setCreatedMidtransOrder] = useState(null)
 
   useEffect(() => {
     if (!user) {
@@ -114,11 +137,61 @@ export default function Checkout() {
     }
   }, [user])
 
-  useEffect(() => {
-    if (!availableMethods.includes(paymentMethod)) {
-      setPaymentMethod(availableMethods[0] || 'COD')
+  const subtotal = useMemo(
+    () => items.reduce((sum, i) => sum + Number(i.harga || 0), 0),
+    [items]
+  )
+
+  // Fetch verified calculation from backend
+  const fetchCalculation = useCallback(async () => {
+    if (items.length === 0) return
+    setCalculating(true)
+    try {
+      const buyerAddr = [
+        address.alamat,
+        address.kecamatan,
+        address.kota_kabupaten,
+        address.provinsi,
+      ]
+        .filter(Boolean)
+        .join(', ')
+
+      const res = await api.post('/pesanan/calculate/', {
+        produk_id: primaryProduct?.id,
+        subtotal,
+        delivery_type: deliveryType,
+        buyer_coordinates: koordinat,
+        buyer_address: buyerAddr,
+      })
+
+      if (res.data) {
+        setCalcData({
+          distance_km: res.data.distance_km || 0,
+          shipping_cost: res.data.shipping_cost || 0,
+          service_fee: res.data.service_fee || Math.round(subtotal * 0.02),
+          courier_name: res.data.courier_name || 'KampusLoop Express (Kurir Kampus)',
+        })
+      }
+    } catch (err) {
+      // Fallback local formula if network fails
+      const fallbackFee = Math.round(subtotal * 0.02)
+      setCalcData((prev) => ({
+        ...prev,
+        service_fee: fallbackFee,
+        shipping_cost: deliveryType === 'cod' ? 0 : 8000,
+      }))
+    } finally {
+      setCalculating(false)
     }
-  }, [availableMethods, paymentMethod])
+  }, [primaryProduct?.id, subtotal, deliveryType, koordinat, address])
+
+  useEffect(() => {
+    fetchCalculation()
+  }, [fetchCalculation])
+
+  const serviceFee = calcData.service_fee || Math.round(subtotal * 0.02)
+  const shippingCost = deliveryType === 'cod' ? 0 : calcData.shipping_cost
+  const totalAmount = subtotal + serviceFee + shippingCost
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -153,7 +226,7 @@ export default function Checkout() {
               alamat: [addr.road, addr.neighbourhood].filter(Boolean).join(', ') || display.slice(0, 140),
             }))
           }
-          showToast('Lokasi terkini berhasil diambil!')
+          showToast('Lokasi GPS & jarak pengiriman berhasil dihitung!')
         } catch {
           if (deliveryType === 'cod') {
             setCodLocation(`Lokasi GPS (${coordStr})`)
@@ -164,14 +237,14 @@ export default function Checkout() {
               alamat: prev.alamat || `Lokasi GPS (${coordStr})`,
             }))
           }
-          showToast('Koordinat lokasi terkini berhasil diambil!')
+          showToast('Koordinat GPS berhasil diperoleh!')
         } finally {
           setLocatingGps(false)
         }
       },
       () => {
         setLocatingGps(false)
-        showToast('Izin lokasi ditolak atau GPS tidak tersedia.')
+        showToast('Izin lokasi ditolak atau GPS tidak aktif.')
       },
       { enableHighAccuracy: true, timeout: 8000 }
     )
@@ -191,8 +264,8 @@ export default function Checkout() {
     }
 
     if (deliveryType === 'delivery') {
-      if (!address.nama_penerima || !address.telp || !address.kode_pos || !address.alamat) {
-        showToast('Lengkapi nama penerima, no. HP, kode pos, dan alamat lengkap pengiriman.')
+      if (!address.nama_penerima || !address.telp || !address.alamat) {
+        showToast('Lengkapi nama penerima, no. HP, dan alamat lengkap pengiriman.')
         return
       }
       if (saveAddressToProfile) {
@@ -224,11 +297,12 @@ export default function Checkout() {
 
     setSubmitting(true)
     try {
-      let successCount = 0
+      let firstCreated = null
       let lastErr = ''
+
       for (const item of items) {
         try {
-          await api.post('/pesanan/create/', {
+          const res = await api.post('/pesanan/create/', {
             produk_id: item.id,
             delivery_type: deliveryType,
             payment_method: paymentMethod,
@@ -239,17 +313,26 @@ export default function Checkout() {
             koordinat,
             catatan: catatan || `Pesanan (${deliveryType.toUpperCase()} · ${paymentMethod})`,
           })
-          successCount++
+          if (!firstCreated && res.data) {
+            firstCreated = res.data
+          }
         } catch (err) {
           lastErr = err.response?.data?.error || 'Gagal membuat pesanan.'
         }
       }
 
-      if (successCount > 0) {
+      if (firstCreated) {
         if (fromCart) clearCart()
         window.dispatchEvent(new CustomEvent('kampusloop:dataUpdated'))
-        showToast('Pesanan berhasil dibuat! Pantau detailnya di Dashboard Pesanan.')
-        navigate('/dashboard')
+
+        // If Midtrans/Digital, show payment modal for instant testing & QRIS/VA display
+        if (paymentMethod.startsWith('MIDTRANS') || paymentMethod.startsWith('TRIPAY') || paymentMethod === 'QRIS') {
+          showToast('Pesanan berhasil dibuat! Selesaikan pembayaran melalui Midtrans Sandbox.')
+          setCreatedMidtransOrder(firstCreated)
+        } else {
+          showToast('Pesanan COD berhasil dibuat! Pantau di Dashboard Pesanan.')
+          navigate('/dashboard')
+        }
       } else {
         showToast(lastErr || 'Gagal membuat pesanan.')
       }
@@ -259,7 +342,6 @@ export default function Checkout() {
   }
 
   const formatPrice = (p) => 'Rp' + Number(p || 0).toLocaleString('id-ID')
-  const subtotal = items.reduce((sum, i) => sum + Number(i.harga || 0), 0)
 
   if (!user) return null
 
@@ -286,7 +368,7 @@ export default function Checkout() {
             ← Kembali ke Shop
           </Link>
           <span className="eyebrow">Checkout KampusLoop</span>
-          <h1>Atur Pengiriman / COD & Metode Pembayaran</h1>
+          <h1>Pembayaran Digital (Midtrans) & Pengiriman Berdasarkan Jarak</h1>
         </div>
       </section>
 
@@ -304,7 +386,13 @@ export default function Checkout() {
                 <button
                   type="button"
                   className="btn btn-outline"
-                  style={{ fontSize: '10px', padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  style={{
+                    fontSize: '10px',
+                    padding: '7px 12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
                   onClick={handleUseCurrentLocation}
                   disabled={locatingGps}
                 >
@@ -321,7 +409,7 @@ export default function Checkout() {
                   onClick={() => setDeliveryType('cod')}
                 >
                   <Handshake size={15} strokeWidth={2.2} />
-                  <span>COD di Kampus / Sekitar</span>
+                  <span>COD di Kampus / Sekitar (Rp0)</span>
                 </button>
                 <button
                   type="button"
@@ -330,7 +418,7 @@ export default function Checkout() {
                   onClick={() => setDeliveryType('delivery')}
                 >
                   <Truck size={15} strokeWidth={2.2} />
-                  <span>Antar ke Alamat Lengkap</span>
+                  <span>Antar Berdasarkan Jarak</span>
                 </button>
               </div>
 
@@ -338,7 +426,14 @@ export default function Checkout() {
                 <div className="listing-form" style={{ marginTop: '14px' }}>
                   {codSuggestions.length > 0 && (
                     <div>
-                      <small style={{ display: 'block', marginBottom: '8px', color: 'var(--muted)', fontWeight: 700 }}>
+                      <small
+                        style={{
+                          display: 'block',
+                          marginBottom: '8px',
+                          color: 'var(--muted)',
+                          fontWeight: 700,
+                        }}
+                      >
                         Pilihan Titik COD Tersedia dari Penjual:
                       </small>
                       <div className="cod-chip-list">
@@ -373,7 +468,15 @@ export default function Checkout() {
                       }}
                     />
                     {koordinat && (
-                      <small style={{ color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
+                      <small
+                        style={{
+                          color: 'var(--green)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          marginTop: '4px',
+                        }}
+                      >
                         <CheckCircle2 size={13} strokeWidth={2.2} />
                         <span>Koordinat GPS terlampir: {koordinat}</span>
                       </small>
@@ -382,6 +485,41 @@ export default function Checkout() {
                 </div>
               ) : (
                 <div className="listing-form" style={{ marginTop: '14px' }}>
+                  {/* Distance & Courier Info Banner */}
+                  <div
+                    style={{
+                      background: '#f0f9ff',
+                      border: '1px solid #bae6fd',
+                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      marginBottom: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0369a1', fontWeight: 700, fontSize: '12px' }}>
+                        <Truck size={15} />
+                        <span>{calcData.courier_name}</span>
+                      </div>
+                      <small style={{ color: '#0284c7', fontSize: '11px' }}>
+                        Tarif Dasar + (Jarak × Tarif/km) · Min. Rp8.000
+                      </small>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--muted)', display: 'block' }}>
+                        Estimasi Jarak:{' '}
+                        <b>{calculating ? '...' : `${calcData.distance_km || 1.5} km`}</b>
+                      </span>
+                      <strong style={{ color: '#0369a1', fontSize: '14px' }}>
+                        {formatPrice(shippingCost)}
+                      </strong>
+                    </div>
+                  </div>
+
                   <div className="form-row">
                     <div className="field">
                       <label>Nama Lengkap Penerima</label>
@@ -436,7 +574,6 @@ export default function Checkout() {
                     <div className="field">
                       <label>Kode Pos</label>
                       <input
-                        required
                         placeholder="Contoh: 90222"
                         value={address.kode_pos}
                         onChange={(e) => setAddress({ ...address, kode_pos: e.target.value })}
@@ -455,21 +592,37 @@ export default function Checkout() {
                   </div>
 
                   <div className="field">
-                    <label>Detail Lainnya / Patokan (Blok, Lantai, Warna Pagar)</label>
+                    <label>Detail Lainnya / Patokan</label>
                     <input
                       placeholder="Contoh: Lantai 2 Kamar 5, depan minimarket"
                       value={address.detail_alamat}
                       onChange={(e) => setAddress({ ...address, detail_alamat: e.target.value })}
                     />
                     {koordinat && (
-                      <small style={{ color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
+                      <small
+                        style={{
+                          color: 'var(--green)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          marginTop: '4px',
+                        }}
+                      >
                         <CheckCircle2 size={13} strokeWidth={2.2} />
                         <span>Koordinat GPS terlampir: {koordinat}</span>
                       </small>
                     )}
                   </div>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={saveAddressToProfile}
@@ -479,128 +632,151 @@ export default function Checkout() {
                   </label>
                 </div>
               )}
-            </div>
 
-            {/* Step 2: Metode Pembayaran */}
-            <div className="listing-form-card show" style={{ marginTop: 0 }}>
-              <div className="dash-section-row">
-                <div>
-                  <span className="eyebrow">Langkah 2</span>
-                  <h2>Metode Pembayaran</h2>
-                </div>
-              </div>
-
-              <div className="payment-method-grid">
-                {availableMethods.map((method) => (
-                  <button
-                    type="button"
-                    key={method}
-                    className={`payment-option-card ${paymentMethod === method ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod(method)}
-                  >
-                    <strong style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      {method === 'COD' ? (
-                        <>
-                          <Banknote size={15} strokeWidth={2.2} />
-                          <span>COD (Bayar di Tempat)</span>
-                        </>
-                      ) : method === 'QRIS' ? (
-                        <>
-                          <QrCode size={15} strokeWidth={2.2} />
-                          <span>QRIS</span>
-                        </>
-                      ) : (
-                        <>
-                          <Landmark size={15} strokeWidth={2.2} />
-                          <span>Transfer Bank</span>
-                        </>
-                      )}
-                    </strong>
-                    <small>
-                      {method === 'COD'
-                        ? 'Bayar tunai/langsung saat serah terima'
-                        : method === 'QRIS'
-                          ? paymentOpts.qris_label || 'Scan QRIS instan'
-                          : `${paymentOpts.bank_name || 'Bank'} · ${paymentOpts.bank_account_number || 'Lihat detail'}`}
-                    </small>
-                  </button>
-                ))}
-              </div>
-
-              {/* Payment Instructions Box */}
-              {paymentMethod === 'QRIS' && (
-                <div className="payment-detail-box">
-                  <strong>Instruksi Pembayaran QRIS ({paymentOpts.qris_label || 'KampusLoop'})</strong>
-                  {paymentOpts.qris_image_url ? (
-                    <img
-                      src={paymentOpts.qris_image_url}
-                      alt="QRIS"
-                      style={{ width: '210px', maxWidth: '100%', borderRadius: '12px', border: '1px solid var(--line)', marginTop: '10px', display: 'block' }}
-                    />
-                  ) : (
-                    <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--muted)' }}>
-                      Silakan scan kode QRIS yang dibagikan penjual/admin setelah konfirmasi pesanan.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {paymentMethod === 'Transfer Bank' && (
-                <div className="payment-detail-box">
-                  <strong>Detail Rekening Transfer Bank</strong>
-                  <div style={{ marginTop: '8px', fontSize: '12px', display: 'grid', gap: '4px' }}>
-                    <span>Bank: <b>{paymentOpts.bank_name || '-'}</b></span>
-                    <span>No. Rekening: <b>{paymentOpts.bank_account_number || 'Hubungi penjual untuk nomor rekening'}</b></span>
-                    <span>Atas Nama: <b>{paymentOpts.bank_account_name || primaryProduct?.seller_nama || 'KampusLoop'}</b></span>
-                  </div>
-                </div>
-              )}
-
-              <div className="field" style={{ marginTop: '14px' }}>
+              <div className="field" style={{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '14px' }}>
                 <label>Catatan Tambahan untuk Penjual (Opsional)</label>
                 <textarea
                   rows={2}
-                  placeholder="Contoh: Bisa ketemu jam 2 siang setelah kelas / titip di pos satpam"
+                  placeholder="Contoh: Bisa ketemu jam 2 siang setelah kuliah / titip di resepsionis"
                   value={catatan}
                   onChange={(e) => setCatatan(e.target.value)}
                 />
               </div>
             </div>
+
+            {/* Banner Informasi Pembayaran via Midtrans Gateway */}
+            <div
+              className="listing-form-card show"
+              style={{
+                marginTop: 0,
+                background: '#f0f9ff',
+                borderColor: '#bae6fd',
+                padding: '16px 20px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: '#e0f2fe',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0284c7',
+                    }}
+                  >
+                    <CreditCard size={20} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: '13px', color: '#0369a1', display: 'block' }}>
+                      Metode Pembayaran: Midtrans Gateway
+                    </strong>
+                    <span style={{ fontSize: '11px', color: '#0284c7' }}>
+                      Semua metode pembayaran (QRIS, GoPay, ShopeePay, Virtual Account BCA/BNI/BRI/Mandiri, Kartu Kredit) otomatis tersedia di pop-up Midtrans.
+                    </span>
+                  </div>
+                </div>
+                <span className="status-pill status-green" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
+                  Midtrans Sandbox Aktif
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Right Column: Order Summary */}
+          {/* Right Column: Order Summary & Transparent Fee Breakdown */}
           <aside className="checkout-summary-card">
-            <span className="eyebrow">Ringkasan Pesanan</span>
-            <h2 style={{ margin: '4px 0 14px', fontSize: '20px' }}>Total Pembelian</h2>
+            <span className="eyebrow">Ringkasan Biaya Checkout</span>
+            <h2 style={{ margin: '4px 0 14px', fontSize: '20px' }}>Total Pembayaran</h2>
 
             <div style={{ display: 'grid', gap: '12px', marginBottom: '16px' }}>
               {items.map((item) => (
                 <div key={item.id} className="checkout-item-row">
                   <img
-                    src={item.foto_display || item.foto_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'}
+                    src={
+                      item.foto_display ||
+                      item.foto_url ||
+                      'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120'
+                    }
                     alt={item.nama}
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <strong>{item.nama}</strong>
-                    <small>{item.kategori} · {item.kondisi}</small>
+                    <small>
+                      {item.kategori} · {item.kondisi}
+                    </small>
                   </div>
                   <b>{formatPrice(item.harga)}</b>
                 </div>
               ))}
             </div>
 
-            <div style={{ borderTop: '1px solid var(--line)', paddingTop: '14px', display: 'grid', gap: '8px', fontSize: '12px' }}>
+            {/* Transparent Cost Breakdown */}
+            <div
+              style={{
+                borderTop: '1px solid var(--line)',
+                paddingTop: '14px',
+                display: 'grid',
+                gap: '10px',
+                fontSize: '12px',
+              }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--muted)' }}>Pengiriman</span>
-                <b>{deliveryType === 'cod' ? 'COD Kampus (Rp0)' : 'Antar Alamat'}</b>
+                <span style={{ color: 'var(--muted)' }}>Subtotal Produk</span>
+                <b>{formatPrice(subtotal)}</b>
               </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span
+                  style={{
+                    color: 'var(--muted)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  title="Biaya operasional & perlindungan transaksi platform"
+                >
+                  <span>Biaya Layanan Platform (2%)</span>
+                  <Info size={12} color="#888" />
+                </span>
+                <b>{formatPrice(serviceFee)}</b>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <span style={{ color: 'var(--muted)', display: 'block' }}>
+                    Ongkos Kirim
+                  </span>
+                  <small style={{ color: '#0369a1', fontSize: '10px' }}>
+                    {deliveryType === 'cod'
+                      ? 'COD Kampus (Rp0)'
+                      : `${calcData.courier_name} · ${calcData.distance_km || 1.5} km`}
+                  </small>
+                </div>
+                <b>{formatPrice(shippingCost)}</b>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--muted)' }}>Pembayaran</span>
-                <b>{paymentMethod}</b>
+                <span style={{ color: 'var(--muted)' }}>Metode Bayar</span>
+                <b style={{ color: '#0284c7' }}>Midtrans Gateway</b>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', marginTop: '6px', paddingTop: '10px', borderTop: '1px solid var(--line)' }}>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '16px',
+                  marginTop: '6px',
+                  paddingTop: '12px',
+                  borderTop: '1px solid var(--line)',
+                }}
+              >
                 <strong>Total Bayar</strong>
-                <strong style={{ color: 'var(--green)' }}>{formatPrice(subtotal)}</strong>
+                <strong style={{ color: 'var(--green)', fontSize: '18px' }}>
+                  {formatPrice(totalAmount)}
+                </strong>
               </div>
             </div>
 
@@ -610,11 +786,28 @@ export default function Checkout() {
               style={{ width: '100%', marginTop: '18px' }}
               disabled={submitting}
             >
-              {submitting ? 'Memproses Pesanan...' : 'Buat Pesanan Sekarang ↗'}
+              {submitting ? 'Menyiapkan Midtrans...' : 'Bayar Sekarang via Midtrans ↗'}
             </button>
           </aside>
         </form>
       </section>
+
+      {/* Midtrans Payment Instructions & Sandbox Simulator Modal */}
+      {createdMidtransOrder && (
+        <MidtransPaymentModal
+          order={createdMidtransOrder}
+          onClose={() => {
+            setCreatedMidtransOrder(null)
+            navigate('/dashboard')
+          }}
+          onSuccess={() => {
+            setTimeout(() => {
+              navigate('/dashboard')
+            }, 1800)
+          }}
+          showToast={showToast}
+        />
+      )}
     </main>
   )
 }
