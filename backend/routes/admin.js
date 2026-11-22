@@ -355,25 +355,29 @@ async function adminUpdateProduct(req, res) {
 
     // Stok / Quantity update logic
     const nextStokVal = stok !== undefined ? parseInt(stok, 10) : (quantity !== undefined ? parseInt(quantity, 10) : undefined);
-    if (nextStokVal !== undefined) {
+
+    if (status !== undefined) {
+      updates.status = status;
+      if (status === 'approved') {
+        const parsedStok = nextStokVal !== undefined && nextStokVal > 0 ? nextStokVal : 1;
+        updates.stok = parsedStok;
+        v4Store.setProductStok(id, parsedStok);
+      } else if (status === 'sold') {
+        updates.stok = 0;
+        v4Store.setProductStok(id, 0);
+      } else if (nextStokVal !== undefined) {
+        updates.stok = Math.max(0, nextStokVal);
+        v4Store.setProductStok(id, updates.stok);
+      }
+    } else if (nextStokVal !== undefined) {
       const parsedStok = Math.max(0, nextStokVal);
       updates.stok = parsedStok;
       v4Store.setProductStok(id, parsedStok);
 
-      // Otomatis ubah status: jika stok 0 -> keterangan sold/habis
-      // Jika stok ditambah kembali (>0) dan sebelumnya sold -> otomatis approved/tersedia lagi!
-      if (parsedStok <= 0 && status === undefined) {
+      if (parsedStok <= 0) {
         updates.status = 'sold';
-      } else if (parsedStok > 0 && existing.status === 'sold' && status === undefined) {
+      } else if (parsedStok > 0 && existing.status === 'sold') {
         updates.status = 'approved';
-      }
-    }
-
-    if (status !== undefined) {
-      updates.status = status;
-      // If manually set to sold and stok was not provided, set stok to 0
-      if (status === 'sold' && nextStokVal === undefined) {
-        v4Store.setProductStok(id, 0);
       }
     }
 
@@ -427,8 +431,13 @@ router.post('/produk/:id/approve/', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Produk tidak ditemukan.' });
     }
 
-    await supabase.from('products').update({ status: 'approved' }).eq('id', id);
-    res.json({ message: `Produk "${produk.nama}" disetujui.` });
+    v4Store.setProductStok(id, 1);
+
+    let { error: upErr } = await supabase.from('products').update({ status: 'approved', stok: 1 }).eq('id', id);
+    if (upErr && v4Store.isMissingColumnError(upErr)) {
+      await supabase.from('products').update({ status: 'approved' }).eq('id', id);
+    }
+    res.json({ message: `Produk "${produk.nama}" disetujui & aktif di katalog.` });
   } catch (err) {
     console.error('Approve error:', err);
     res.status(500).json({ error: 'Server error.' });

@@ -285,8 +285,25 @@ async function formatProducts(products, userId) {
       paymentOptions.cod_locations ||
       DEFAULT_PAYMENT_CONFIG.cod_locations;
 
-    const defaultStok = product.status === 'sold' ? 0 : 1;
-    const stok = product.stok !== undefined ? product.stok : v4Store.getProductStok(product.id, defaultStok);
+    let finalStok;
+    let finalStatus = product.status || 'pending';
+
+    if (product.stok !== undefined && product.stok !== null) {
+      finalStok = Math.max(0, parseInt(product.stok, 10) || 0);
+      if (finalStok <= 0 && finalStatus === 'approved') {
+        finalStatus = 'sold';
+      }
+    } else {
+      // Column 'stok' does not exist in DB yet; determine from database status
+      if (finalStatus === 'approved') {
+        const storedStok = v4Store.getProductStok(product.id, null);
+        finalStok = storedStok !== null && storedStok > 0 ? storedStok : 1;
+      } else if (finalStatus === 'sold') {
+        finalStok = 0;
+      } else {
+        finalStok = 1;
+      }
+    }
 
     return {
       id: product.id,
@@ -306,9 +323,9 @@ async function formatProducts(products, userId) {
       cod_lokasi: codLokasi,
       cod_lokasi_custom: customCod,
       payment_options: paymentOptions,
-      stok: Number(stok),
-      quantity: Number(stok),
-      status: Number(stok) <= 0 && product.status !== 'pending' ? 'sold' : product.status,
+      stok: Number(finalStok),
+      quantity: Number(finalStok),
+      status: finalStatus,
       tanggal_dibuat: product.tanggal_dibuat,
       tanggal_diperbarui: product.tanggal_diperbarui,
       dilihat: product.dilihat,

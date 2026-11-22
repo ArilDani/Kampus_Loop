@@ -1493,6 +1493,16 @@ export default function AdminDashboard() {
                               Nonaktifkan
                             </button>
                           )}
+                          {p.status === 'sold' && (
+                            <button
+                              className="btn btn-primary"
+                              style={{ fontSize: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => handleApprove(p.id)}
+                            >
+                              <Check size={11} strokeWidth={2.4} />
+                              <span>Aktifkan</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteProduct(p.id)}
                             style={{
@@ -3145,7 +3155,7 @@ export default function AdminDashboard() {
                       setEditingProduct({
                         ...editingProduct,
                         status: nextStat,
-                        stok: nextStat === 'sold' ? 0 : (editingProduct.stok === 0 ? 1 : editingProduct.stok),
+                        stok: nextStat === 'sold' ? 0 : (Number(editingProduct.stok) <= 0 ? 1 : editingProduct.stok),
                       })
                     }}
                   >
