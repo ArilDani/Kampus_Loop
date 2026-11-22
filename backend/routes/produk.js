@@ -139,13 +139,14 @@ router.post('/create/', isAuthenticated, async (req, res) => {
       });
     }
 
-    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi } = req.body;
+    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi, stok } = req.body;
     if (!nama || !kategori || !harga) {
       return res.status(400).json({ error: 'Nama, kategori, dan harga produk wajib diisi.' });
     }
 
+    const stokNum = stok !== undefined && stok !== '' ? Math.max(0, parseInt(stok, 10)) : 1;
     // Admin web products go live immediately without waiting for verification
-    const initialStatus = role === 'admin' ? 'approved' : 'pending';
+    const initialStatus = role === 'admin' ? (stokNum === 0 ? 'sold' : 'approved') : 'pending';
 
     const baseInsert = {
       seller_id: userId,
@@ -161,6 +162,7 @@ router.post('/create/', isAuthenticated, async (req, res) => {
       foto_url: (foto_url || '').trim(),
       lokasi: (lokasi || (profile && profile.kampus) || '').trim(),
       status: initialStatus,
+      stok: stokNum,
     };
     const codStr = (
       cod_lokasi ||
@@ -175,11 +177,13 @@ router.post('/create/', isAuthenticated, async (req, res) => {
       .single();
 
     if (error && v4Store.isMissingColumnError(error)) {
-      const retry = await supabase.from('products').insert(baseInsert).select().single();
+      const { stok: _s, cod_lokasi: _c, ...legacyInsert } = baseInsert;
+      const retry = await supabase.from('products').insert(legacyInsert).select().single();
       newProduct = retry.data;
       error = retry.error;
-      if (!error && newProduct && codStr) {
-        v4Store.setProductCod(newProduct.id, codStr);
+      if (!error && newProduct) {
+        if (codStr) v4Store.setProductCod(newProduct.id, codStr);
+        v4Store.setProductStok(newProduct.id, stokNum);
       }
     }
 
@@ -219,7 +223,7 @@ async function updateProductHandler(req, res) {
       return res.status(404).json({ error: 'Produk tidak ditemukan.' });
     }
 
-    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi, status } = req.body;
+    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi, status, stok } = req.body;
     const updates = { tanggal_diperbarui: new Date().toISOString() };
 
     if (nama !== undefined) updates.nama = String(nama).trim();
@@ -231,6 +235,18 @@ async function updateProductHandler(req, res) {
     if (foto_url !== undefined) updates.foto_url = String(foto_url).trim();
     if (lokasi !== undefined) updates.lokasi = String(lokasi).trim();
     if (cod_lokasi !== undefined) updates.cod_lokasi = String(cod_lokasi).trim();
+
+    let newStok = undefined;
+    if (stok !== undefined && stok !== '') {
+      newStok = Math.max(0, parseInt(stok, 10));
+      updates.stok = newStok;
+      if (newStok === 0 && !status) {
+        updates.status = 'sold';
+      } else if (newStok > 0 && product.status === 'sold' && !status) {
+        updates.status = 'approved';
+      }
+    }
+
     if (admin && status !== undefined) updates.status = status;
 
     let { data: updated, error: upErr } = await supabase
@@ -241,15 +257,19 @@ async function updateProductHandler(req, res) {
       .single();
 
     if (upErr && v4Store.isMissingColumnError(upErr)) {
-      const { cod_lokasi: codVal, ...baseUpdates } = updates;
+      const { cod_lokasi: codVal, stok: stokVal, ...baseUpdates } = updates;
       const retry = await supabase.from('products').update(baseUpdates).eq('id', id).select().single();
       updated = retry.data;
       upErr = retry.error;
       if (!upErr && codVal !== undefined) {
         v4Store.setProductCod(id, codVal);
       }
-    } else if (!upErr && cod_lokasi !== undefined) {
-      v4Store.setProductCod(id, null);
+      if (!upErr && newStok !== undefined) {
+        v4Store.setProductStok(id, newStok);
+      }
+    } else if (!upErr) {
+      if (cod_lokasi !== undefined) v4Store.setProductCod(id, null);
+      if (newStok !== undefined) v4Store.setProductStok(id, newStok);
     }
 
     if (upErr) {

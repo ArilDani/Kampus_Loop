@@ -15,8 +15,28 @@ const STATUS_DISPLAY = {
   pending: 'Menunggu Konfirmasi',
   confirmed: 'Dikonfirmasi',
   cod_waiting: 'Menunggu COD',
+  processing: 'Sedang Diproses',
+  shipped: 'Sedang Dikirim',
+  delivered: 'Telah Sampai',
   completed: 'Selesai',
   cancelled: 'Dibatalkan',
+};
+
+const PAYMENT_STATUS_DISPLAY = {
+  unpaid: 'Menunggu Pembayaran',
+  paid: 'Lunas',
+  failed: 'Pembayaran Gagal',
+  expired: 'Kedaluwarsa',
+  refunded: 'Dikembalikan (Refund)',
+};
+
+const SHIPPING_STATUS_DISPLAY = {
+  pending: 'Menunggu Pengiriman',
+  processing: 'Sedang Dikemas / Diproses',
+  shipped: 'Dalam Perjalanan (Dikirim)',
+  delivered: 'Telah Diterima',
+  cancelled: 'Pengiriman Dibatalkan',
+  returned: 'Diretur ke Penjual',
 };
 
 // GET /api/user/listings/ — user's own products (for seller)
@@ -71,14 +91,122 @@ router.get('/seller-orders/', isAuthenticated, async (req, res) => {
     const store = v4Store.readStore();
     res.json((orders || []).map(o => {
       const extras = store.orderExtras[String(o.id)] || {};
+      const subtotal = Number(o.subtotal_produk ?? extras.subtotal_produk ?? o.harga_bayar ?? 0);
+      const serviceFee = Number(o.service_fee ?? extras.service_fee ?? Math.round(subtotal * 0.02));
+      const shippingCost = Number(o.shipping_cost ?? extras.shipping_cost ?? Math.max(0, (o.harga_bayar || 0) - subtotal - serviceFee));
+      const totalAmount = Number(o.harga_bayar || (subtotal + serviceFee + shippingCost));
+
+      let paymentStatus = o.payment_status || extras.payment_status;
+      if (!paymentStatus) {
+        if (o.status === 'completed') paymentStatus = 'paid';
+        else paymentStatus = 'unpaid';
+      }
+
+      let shippingStatus = o.shipping_status || extras.shipping_status;
+      if (!shippingStatus) {
+        if (o.status === 'completed') shippingStatus = 'delivered';
+        else if (o.status === 'cancelled') shippingStatus = 'cancelled';
+        else if (o.status === 'confirmed' || o.status === 'cod_waiting') shippingStatus = 'processing';
+        else shippingStatus = 'pending';
+      }
+
+      const isCod = (o.delivery_type || extras.delivery_type) === 'cod';
+      let codFeeStatus = o.cod_fee_status || extras.cod_fee_status;
+      if (!codFeeStatus) {
+        codFeeStatus = isCod ? (paymentStatus === 'paid' ? 'unpaid' : 'none') : 'none';
+      }
+
       return {
         ...extras,
         ...o,
+        subtotal_produk: subtotal,
+        service_fee: serviceFee,
+        shipping_cost: shippingCost,
+        harga_bayar: totalAmount,
+        total_bayar: totalAmount,
+        distance_km: Number(o.distance_km ?? extras.distance_km ?? 0),
+        shipping_courier: o.shipping_courier || extras.shipping_courier || (isCod ? 'COD (Kampus)' : 'KampusLoop Express'),
         status_display: STATUS_DISPLAY[o.status] || o.status,
+        payment_status: paymentStatus,
+        payment_status_display: PAYMENT_STATUS_DISPLAY[paymentStatus] || paymentStatus,
+        shipping_status: shippingStatus,
+        shipping_status_display: SHIPPING_STATUS_DISPLAY[shippingStatus] || shippingStatus,
+        cod_fee_status: codFeeStatus,
+        cod_fee_amount: Number(o.cod_fee_amount ?? extras.cod_fee_amount ?? (isCod ? serviceFee : 0)),
+        net_seller_revenue: subtotal, // Seller gets product subtotal
       };
     }));
   } catch (err) {
     console.error('Seller orders error:', err);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// PUT /api/user/seller-orders/:id/shipping-status/ — seller updates shipping status
+router.put('/seller-orders/:id/shipping-status/', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const { id } = req.params;
+    const { shipping_status } = req.body;
+
+    if (!SHIPPING_STATUS_DISPLAY[shipping_status]) {
+      return res.status(400).json({ error: 'Status pengiriman tidak valid.' });
+    }
+
+    const { data: order, error: oErr } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (oErr || !order) {
+      return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+    }
+
+    // Check ownership
+    const { data: produk } = await supabase
+      .from('products')
+      .select('seller_id')
+      .eq('id', order.produk_id)
+      .single();
+
+    if (!produk || produk.seller_id !== userId) {
+      return res.status(403).json({ error: 'Anda tidak memiliki wewenang untuk mengubah pesanan ini.' });
+    }
+
+    const updates = { shipping_status };
+    if (shipping_status === 'delivered') {
+      updates.status = 'completed';
+      updates.tanggal_selesai = new Date().toISOString();
+      // If COD, delivery means payment was received in cash
+      if (order.delivery_type === 'cod') {
+        updates.payment_status = 'paid';
+        updates.cod_fee_status = 'unpaid'; // Platform fee receivable from seller
+      }
+    } else if (shipping_status === 'shipped') {
+      updates.status = 'confirmed';
+    }
+
+    v4Store.addOrderHistory(id, {
+      action: 'SELLER_SHIPPING_UPDATE',
+      actor: 'seller',
+      notes: `Penjual memperbarui status pengiriman ke: ${SHIPPING_STATUS_DISPLAY[shipping_status]}`,
+      timestamp: new Date().toISOString(),
+    });
+
+    v4Store.updateOrderExtras(id, updates);
+
+    try {
+      await supabase.from('orders').update(updates).eq('id', id);
+    } catch {}
+
+    res.json({
+      message: `Status pengiriman berhasil diperbarui menjadi ${SHIPPING_STATUS_DISPLAY[shipping_status]}.`,
+      shipping_status,
+      status: updates.status || order.status,
+    });
+  } catch (err) {
+    console.error('Update shipping status error:', err);
     res.status(500).json({ error: 'Server error.' });
   }
 });

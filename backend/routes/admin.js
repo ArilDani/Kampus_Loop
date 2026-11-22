@@ -18,8 +18,28 @@ const STATUS_DISPLAY = {
   pending: 'Menunggu Konfirmasi',
   confirmed: 'Dikonfirmasi',
   cod_waiting: 'Menunggu COD',
+  processing: 'Sedang Diproses',
+  shipped: 'Sedang Dikirim',
+  delivered: 'Telah Sampai',
   completed: 'Selesai',
   cancelled: 'Dibatalkan',
+};
+
+const PAYMENT_STATUS_DISPLAY = {
+  unpaid: 'Menunggu Pembayaran',
+  paid: 'Lunas',
+  failed: 'Pembayaran Gagal',
+  expired: 'Kedaluwarsa',
+  refunded: 'Dikembalikan (Refund)',
+};
+
+const SHIPPING_STATUS_DISPLAY = {
+  pending: 'Menunggu Pengiriman',
+  processing: 'Sedang Dikemas / Diproses',
+  shipped: 'Dalam Perjalanan (Dikirim)',
+  delivered: 'Telah Diterima',
+  cancelled: 'Pengiriman Dibatalkan',
+  returned: 'Diretur ke Penjual',
 };
 
 function formatCompactRupiah(amount) {
@@ -131,6 +151,45 @@ router.get('/stats/', isAdmin, async (req, res) => {
       ? Math.round(((totalProdukAktif + soldProducts) / totalProduk) * 100)
       : 0;
 
+    // Platform Revenue Breakdown (Transaction Fee 2%, Tripay Fee, Net Revenue, Shipping Volume, COD Receivables)
+    const store = v4Store.readStore();
+    let grossPlatformRevenue = 0;
+    let totalTripayFee = 0;
+    let totalShippingVolume = 0;
+    let totalCodFeePending = 0;
+    let totalCodFeeCollected = 0;
+
+    orders.forEach(o => {
+      const extras = store.orderExtras[String(o.id)] || {};
+      const subtotal = Number(o.subtotal_produk ?? extras.subtotal_produk ?? o.harga_bayar ?? 0);
+      const serviceFee = Number(o.service_fee ?? extras.service_fee ?? Math.round(subtotal * 0.02));
+      const shippingCost = Number(o.shipping_cost ?? extras.shipping_cost ?? 0);
+      const tripayFee = Number(o.tripay_fee ?? extras.tripay_fee ?? 0);
+      const paymentStatus = o.payment_status || extras.payment_status || (o.status === 'completed' ? 'paid' : 'unpaid');
+      const codFeeStatus = o.cod_fee_status || extras.cod_fee_status || 'none';
+      const codFeeAmount = Number(o.cod_fee_amount ?? extras.cod_fee_amount ?? (o.delivery_type === 'cod' ? serviceFee : 0));
+
+      // Rule: Failed, cancelled, or returned transactions generate NO revenue
+      const isSuccessful = o.status === 'completed' || (paymentStatus === 'paid' && o.status !== 'cancelled' && o.status !== 'failed');
+
+      if (isSuccessful) {
+        grossPlatformRevenue += serviceFee;
+        totalTripayFee += tripayFee;
+      }
+
+      if (o.status !== 'cancelled' && o.status !== 'returned') {
+        totalShippingVolume += shippingCost;
+      }
+
+      if (codFeeStatus === 'unpaid') {
+        totalCodFeePending += codFeeAmount;
+      } else if (codFeeStatus === 'paid') {
+        totalCodFeeCollected += codFeeAmount;
+      }
+    });
+
+    const netPlatformRevenue = Math.max(0, grossPlatformRevenue - totalTripayFee);
+
     res.json({
       total_produk: totalProduk,
       total_pengguna: totalPengguna,
@@ -138,6 +197,22 @@ router.get('/stats/', isAdmin, async (req, res) => {
       produk_pending: pendingProducts,
       total_transaksi: totalTransaksi,
       total_order_volume: totalOrderVolume,
+      gross_platform_revenue: grossPlatformRevenue,
+      gross_platform_revenue_formatted: formatCompactRupiah(grossPlatformRevenue),
+      total_tripay_fee: totalTripayFee,
+      total_tripay_fee_formatted: formatCompactRupiah(totalTripayFee),
+      total_midtrans_fee: totalTripayFee,
+      total_midtrans_fee_formatted: formatCompactRupiah(totalTripayFee),
+      total_gateway_fee: totalTripayFee,
+      total_gateway_fee_formatted: formatCompactRupiah(totalTripayFee),
+      net_platform_revenue: netPlatformRevenue,
+      net_platform_revenue_formatted: formatCompactRupiah(netPlatformRevenue),
+      total_shipping_volume: totalShippingVolume,
+      total_shipping_volume_formatted: formatCompactRupiah(totalShippingVolume),
+      total_cod_fee_pending: totalCodFeePending,
+      total_cod_fee_pending_formatted: formatCompactRupiah(totalCodFeePending),
+      total_cod_fee_collected: totalCodFeeCollected,
+      total_cod_fee_collected_formatted: formatCompactRupiah(totalCodFeeCollected),
       kategori_breakdown: kategoriBreakdown,
       total_users: totalPengguna,
       total_sellers: totalSellers,
@@ -193,11 +268,14 @@ router.post('/produk/create/', isAdmin, async (req, res) => {
     const userId = req.session.userId;
     const user = req.currentUser;
     const profile = req.currentProfile;
-    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi, status } = req.body;
+    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi, status, stok, quantity } = req.body;
 
     if (!nama || !kategori || !harga) {
       return res.status(400).json({ error: 'Nama, kategori, dan harga produk wajib diisi.' });
     }
+
+    const initialStok = stok !== undefined ? parseInt(stok, 10) : (quantity !== undefined ? parseInt(quantity, 10) : 1);
+    const initialStatus = initialStok <= 0 ? 'sold' : (status || 'approved');
 
     const baseInsert = {
       seller_id: userId,
@@ -212,13 +290,13 @@ router.post('/produk/create/', isAdmin, async (req, res) => {
       deskripsi: String(deskripsi || '').trim(),
       foto_url: String(foto_url || '').trim(),
       lokasi: String(lokasi || (profile && profile.kampus) || 'KampusLoop').trim(),
-      status: status || 'approved',
+      status: initialStatus,
     };
     const codStr = String(cod_lokasi || '').trim();
 
     let { data: newProduct, error } = await supabase
       .from('products')
-      .insert({ ...baseInsert, cod_lokasi: codStr })
+      .insert({ ...baseInsert, cod_lokasi: codStr, stok: initialStok })
       .select()
       .single();
 
@@ -226,9 +304,12 @@ router.post('/produk/create/', isAdmin, async (req, res) => {
       const retry = await supabase.from('products').insert(baseInsert).select().single();
       newProduct = retry.data;
       error = retry.error;
-      if (!error && newProduct && codStr) {
-        v4Store.setProductCod(newProduct.id, codStr);
+      if (!error && newProduct) {
+        if (codStr) v4Store.setProductCod(newProduct.id, codStr);
+        v4Store.setProductStok(newProduct.id, initialStok);
       }
+    } else if (!error && newProduct) {
+      v4Store.setProductStok(newProduct.id, initialStok);
     }
 
     if (error) {
@@ -244,11 +325,11 @@ router.post('/produk/create/', isAdmin, async (req, res) => {
   }
 });
 
-// PUT & POST /api/admin/produk/:id/update/ — Admin Web edits any product detail
+// PUT & POST /api/admin/produk/:id/update/ — Admin Web edits any product detail (stok, foto, harga, dll)
 async function adminUpdateProduct(req, res) {
   try {
     const { id } = req.params;
-    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi, status } = req.body;
+    const { nama, kategori, kondisi, harga, harga_asli, deskripsi, foto_url, lokasi, cod_lokasi, status, stok, quantity } = req.body;
 
     const { data: existing, error: findErr } = await supabase
       .from('products')
@@ -270,7 +351,30 @@ async function adminUpdateProduct(req, res) {
     if (foto_url !== undefined) updates.foto_url = String(foto_url).trim();
     if (lokasi !== undefined) updates.lokasi = String(lokasi).trim();
     if (cod_lokasi !== undefined) updates.cod_lokasi = String(cod_lokasi).trim();
-    if (status !== undefined) updates.status = status;
+
+    // Stok / Quantity update logic
+    const nextStokVal = stok !== undefined ? parseInt(stok, 10) : (quantity !== undefined ? parseInt(quantity, 10) : undefined);
+    if (nextStokVal !== undefined) {
+      const parsedStok = Math.max(0, nextStokVal);
+      updates.stok = parsedStok;
+      v4Store.setProductStok(id, parsedStok);
+
+      // Otomatis ubah status: jika stok 0 -> keterangan sold/habis
+      // Jika stok ditambah kembali (>0) dan sebelumnya sold -> otomatis approved/tersedia lagi!
+      if (parsedStok <= 0 && status === undefined) {
+        updates.status = 'sold';
+      } else if (parsedStok > 0 && existing.status === 'sold' && status === undefined) {
+        updates.status = 'approved';
+      }
+    }
+
+    if (status !== undefined) {
+      updates.status = status;
+      // If manually set to sold and stok was not provided, set stok to 0
+      if (status === 'sold' && nextStokVal === undefined) {
+        v4Store.setProductStok(id, 0);
+      }
+    }
 
     let { data: updated, error: upErr } = await supabase
       .from('products')
@@ -280,15 +384,16 @@ async function adminUpdateProduct(req, res) {
       .single();
 
     if (upErr && v4Store.isMissingColumnError(upErr)) {
-      const { cod_lokasi: codVal, ...baseUpdates } = updates;
+      const { cod_lokasi: codVal, stok: stokVal, ...baseUpdates } = updates;
       const retry = await supabase.from('products').update(baseUpdates).eq('id', id).select().single();
       updated = retry.data;
       upErr = retry.error;
       if (!upErr && codVal !== undefined) {
         v4Store.setProductCod(id, codVal);
       }
-    } else if (!upErr && cod_lokasi !== undefined) {
-      v4Store.setProductCod(id, null);
+      if (stokVal !== undefined) {
+        v4Store.setProductStok(id, stokVal);
+      }
     }
 
     if (upErr) {
@@ -296,8 +401,8 @@ async function adminUpdateProduct(req, res) {
       return res.status(400).json({ error: 'Gagal memperbarui produk.' });
     }
 
-    const formatted = await formatProduct(updated, req.session.userId);
-    res.json({ message: `Produk "${updated.nama}" berhasil diperbarui.`, product: formatted });
+    const formatted = await formatProduct(updated || { ...existing, ...updates }, req.session.userId);
+    res.json({ message: `Produk "${formatted.nama}" berhasil diperbarui.`, product: formatted });
   } catch (err) {
     console.error('Admin update product error:', err);
     res.status(500).json({ error: 'Server error.' });
@@ -704,6 +809,42 @@ router.get('/pesanan/', isAdmin, async (req, res) => {
       }
 
       const extras = v4Store.readStore().orderExtras[String(order.id)] || {};
+      const subtotal = Number(order.subtotal_produk ?? extras.subtotal_produk ?? order.harga_bayar ?? 0);
+      const serviceFee = Number(order.service_fee ?? extras.service_fee ?? Math.round(subtotal * 0.02));
+      const shippingCost = Number(order.shipping_cost ?? extras.shipping_cost ?? Math.max(0, (order.harga_bayar || 0) - subtotal - serviceFee));
+      const totalAmount = Number(order.harga_bayar || (subtotal + serviceFee + shippingCost));
+
+      let paymentStatus = order.payment_status || extras.payment_status;
+      if (!paymentStatus) {
+        if (order.status === 'completed') paymentStatus = 'paid';
+        else paymentStatus = 'unpaid';
+      }
+
+      let shippingStatus = order.shipping_status || extras.shipping_status;
+      if (!shippingStatus) {
+        if (order.status === 'completed') shippingStatus = 'delivered';
+        else if (order.status === 'cancelled') shippingStatus = 'cancelled';
+        else if (order.status === 'confirmed' || order.status === 'cod_waiting') shippingStatus = 'processing';
+        else shippingStatus = 'pending';
+      }
+
+      const isCod = (order.delivery_type || extras.delivery_type) === 'cod';
+      let codFeeStatus = order.cod_fee_status || extras.cod_fee_status;
+      if (!codFeeStatus) {
+        codFeeStatus = isCod ? (paymentStatus === 'paid' ? 'unpaid' : 'none') : 'none';
+      }
+
+      const history = Array.isArray(extras.history)
+        ? extras.history
+        : (Array.isArray(order.history) ? order.history : [
+            {
+              action: 'ORDER_CREATED',
+              actor: 'buyer',
+              notes: 'Pesanan dibuat',
+              timestamp: order.tanggal_pesan || new Date().toISOString(),
+            },
+          ]);
+
       result.push({
         id: order.id,
         order_number: order.order_number,
@@ -711,9 +852,40 @@ router.get('/pesanan/', isAdmin, async (req, res) => {
         seller_nama,
         produk_nama,
         produk_foto,
-        status_display: STATUS_DISPLAY[order.status] || order.status,
-        harga_bayar: order.harga_bayar,
+        subtotal_produk: subtotal,
+        service_fee: serviceFee,
+        shipping_cost: shippingCost,
+        harga_bayar: totalAmount,
+        total_bayar: totalAmount,
+        distance_km: Number(order.distance_km ?? extras.distance_km ?? 0),
+        shipping_courier: order.shipping_courier || extras.shipping_courier || (isCod ? 'COD (Kampus)' : 'KampusLoop Express'),
         status: order.status,
+        status_display: STATUS_DISPLAY[order.status] || order.status,
+        payment_status: paymentStatus,
+        payment_status_display: PAYMENT_STATUS_DISPLAY[paymentStatus] || paymentStatus,
+        shipping_status: shippingStatus,
+        shipping_status_display: SHIPPING_STATUS_DISPLAY[shippingStatus] || shippingStatus,
+        cod_fee_status: codFeeStatus,
+        cod_fee_amount: Number(order.cod_fee_amount ?? extras.cod_fee_amount ?? (isCod ? serviceFee : 0)),
+        midtrans_transaction_id: order.midtrans_transaction_id || extras.midtrans_transaction_id || order.tripay_reference || extras.tripay_reference || '',
+        midtrans_order_id: order.midtrans_order_id || extras.midtrans_order_id || order.order_number,
+        midtrans_snap_token: order.midtrans_snap_token || extras.midtrans_snap_token || '',
+        midtrans_redirect_url: order.midtrans_redirect_url || extras.midtrans_redirect_url || order.tripay_checkout_url || extras.tripay_checkout_url || '',
+        midtrans_payment_type: order.midtrans_payment_type || extras.midtrans_payment_type || order.tripay_payment_method || extras.tripay_payment_method || order.payment_method || 'COD',
+        midtrans_va_number: order.midtrans_va_number || extras.midtrans_va_number || order.tripay_pay_code || extras.tripay_pay_code || '',
+        midtrans_qr_url: order.midtrans_qr_url || extras.midtrans_qr_url || order.tripay_qr_url || extras.tripay_qr_url || '',
+        midtrans_qr_string: order.midtrans_qr_string || extras.midtrans_qr_string || order.tripay_qr_string || extras.tripay_qr_string || '',
+        midtrans_expiry_time: order.midtrans_expiry_time || extras.midtrans_expiry_time || order.tripay_expired_time || extras.tripay_expired_time || null,
+        midtrans_fee: Number(order.midtrans_fee ?? extras.midtrans_fee ?? order.tripay_fee ?? extras.tripay_fee ?? 0),
+        tripay_reference: order.midtrans_transaction_id || extras.midtrans_transaction_id || order.tripay_reference || extras.tripay_reference || '',
+        tripay_merchant_ref: order.midtrans_order_id || extras.midtrans_order_id || order.tripay_merchant_ref || extras.tripay_merchant_ref || order.order_number,
+        tripay_payment_method: order.midtrans_payment_type || extras.midtrans_payment_type || order.tripay_payment_method || extras.tripay_payment_method || order.payment_method || 'COD',
+        tripay_checkout_url: order.midtrans_redirect_url || extras.midtrans_redirect_url || order.tripay_checkout_url || extras.tripay_checkout_url || '',
+        tripay_pay_code: order.midtrans_va_number || extras.midtrans_va_number || order.tripay_pay_code || extras.tripay_pay_code || '',
+        tripay_qr_url: order.midtrans_qr_url || extras.midtrans_qr_url || order.tripay_qr_url || extras.tripay_qr_url || '',
+        tripay_qr_string: order.midtrans_qr_string || extras.midtrans_qr_string || order.tripay_qr_string || extras.tripay_qr_string || '',
+        tripay_expired_time: order.midtrans_expiry_time || extras.midtrans_expiry_time || order.tripay_expired_time || extras.tripay_expired_time || null,
+        tripay_fee: Number(order.midtrans_fee ?? extras.midtrans_fee ?? order.tripay_fee ?? extras.tripay_fee ?? 0),
         delivery_type: order.delivery_type || extras.delivery_type || 'cod',
         payment_method: order.payment_method || extras.payment_method || 'COD',
         shipping_address: order.shipping_address || extras.shipping_address || '',
@@ -724,6 +896,7 @@ router.get('/pesanan/', isAdmin, async (req, res) => {
         catatan: order.catatan || '',
         tanggal_pesan: order.tanggal_pesan,
         tanggal_selesai: order.tanggal_selesai,
+        history,
       });
     }
 
@@ -734,35 +907,62 @@ router.get('/pesanan/', isAdmin, async (req, res) => {
   }
 });
 
-// PUT & POST /api/admin/pesanan/:id/status/ — update order status
+// PUT & POST /api/admin/pesanan/:id/status/ — update order status, payment status, shipping status, and COD fee status
 async function updateOrderStatus(req, res) {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, payment_status, shipping_status, cod_fee_status } = req.body;
 
-    if (!STATUS_DISPLAY[status]) {
-      return res.status(400).json({ error: 'Status pesanan tidak valid.' });
+    const updates = {};
+    if (status) {
+      if (!STATUS_DISPLAY[status]) {
+        return res.status(400).json({ error: 'Status pesanan tidak valid.' });
+      }
+      updates.status = status;
+      if (status === 'completed') {
+        updates.tanggal_selesai = new Date().toISOString();
+      }
+    }
+    if (payment_status) updates.payment_status = payment_status;
+    if (shipping_status) updates.shipping_status = shipping_status;
+    if (cod_fee_status) updates.cod_fee_status = cod_fee_status;
+
+    // Log to order history
+    v4Store.addOrderHistory(id, {
+      action: 'ADMIN_UPDATE',
+      actor: 'admin',
+      notes: `Admin memperbarui status: ${Object.entries(updates).map(([k, v]) => `${k}=${v}`).join(', ')}`,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Save to fallback store
+    v4Store.updateOrderExtras(id, updates);
+
+    let updatedOrder = null;
+    try {
+      const { data: updated } = await supabase
+        .from('orders')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      updatedOrder = updated;
+    } catch {
+      // Fallback handled
     }
 
-    const updates = { status };
-    if (status === 'completed') {
-      updates.tanggal_selesai = new Date().toISOString();
-    }
-
-    const { data: updated, error } = await supabase
-      .from('orders')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error || !updated) {
-      return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+    if (!updatedOrder) {
+      const { data: fallbackOrder } = await supabase.from('orders').select('*').eq('id', id).single();
+      updatedOrder = fallbackOrder;
     }
 
     res.json({
-      message: `Status pesanan #${updated.order_number} diperbarui menjadi ${STATUS_DISPLAY[status]}.`,
-      order: { ...updated, status_display: STATUS_DISPLAY[updated.status] || updated.status },
+      message: 'Status pesanan berhasil diperbarui.',
+      order: {
+        ...(updatedOrder || {}),
+        ...updates,
+        status_display: STATUS_DISPLAY[updates.status || updatedOrder?.status] || updates.status,
+      },
     });
   } catch (err) {
     console.error('Update order status error:', err);
@@ -772,6 +972,55 @@ async function updateOrderStatus(req, res) {
 
 router.put('/pesanan/:id/status/', isAdmin, updateOrderStatus);
 router.post('/pesanan/:id/status/', isAdmin, updateOrderStatus);
+
+// POST /api/admin/pesanan/:id/settle-cod-fee/ — Mark seller COD platform fee as settled
+router.post('/pesanan/:id/settle-cod-fee/', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    v4Store.updateOrderExtras(id, { cod_fee_status: 'paid' });
+    v4Store.addOrderHistory(id, {
+      action: 'COD_FEE_SETTLED',
+      actor: 'admin',
+      notes: 'Tagihan biaya layanan COD telah lunas disetorkan ke platform.',
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      await supabase.from('orders').update({ cod_fee_status: 'paid' }).eq('id', id);
+    } catch {}
+
+    res.json({ success: true, message: 'Tagihan Fee COD penjual berhasil ditandai LUNAS.' });
+  } catch (err) {
+    console.error('Settle COD fee error:', err);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// POST & PUT /api/admin/shipping-settings/ — Dedicated shipping rates update
+router.post('/shipping-settings/', isAdmin, async (req, res) => {
+  try {
+    const { base_rate, rate_per_km, min_shipping_cost, courier_name, provider } = req.body;
+    const newConfig = {
+      base_rate: Number(base_rate || 5000),
+      rate_per_km: Number(rate_per_km || 2000),
+      min_shipping_cost: Number(min_shipping_cost || 8000),
+      courier_name: String(courier_name || 'KampusLoop Express (Kurir Kampus)').trim(),
+      provider: provider || 'distance_matrix',
+      active: true,
+    };
+
+    v4Store.setShippingConfig(newConfig);
+
+    try {
+      await supabase.from('settings').update({ shipping_config: newConfig }).eq('id', 1);
+    } catch {}
+
+    res.json({ message: 'Tarif pengiriman berhasil diperbarui.', shipping_config: newConfig });
+  } catch (err) {
+    console.error('Save shipping settings error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan tarif pengiriman.' });
+  }
+});
 
 // GET /api/admin/kontak/
 router.get('/kontak/', isAdmin, async (req, res) => {

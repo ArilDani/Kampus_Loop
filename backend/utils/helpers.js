@@ -64,6 +64,7 @@ Periksa fisik, kelengkapan, dan fungsi barang secara langsung sebelum menyerahka
 KampusLoop memvalidasi berkas mahasiswa dan surat perjanjian penjual. Jika menemukan kejanggalan atau indikasi penipuan, segera laporkan melalui halaman Contact.`,
   surat_perjanjian_file_url: '',
   payment_config: DEFAULT_PAYMENT_CONFIG,
+  shipping_config: v4Store.DEFAULT_SHIPPING_CONFIG,
 };
 
 const DEFAULT_AGREEMENT_TEMPLATE = {
@@ -184,13 +185,21 @@ async function getSiteSettings() {
       if (key === 'payment_config') {
         const rawCfg = settings.payment_config || store.sitePaymentConfig;
         merged.payment_config = normalizePaymentConfig(rawCfg, DEFAULT_PAYMENT_CONFIG);
+      } else if (key === 'shipping_config') {
+        const rawShip = settings.shipping_config || store.shippingConfig;
+        merged.shipping_config = { ...v4Store.DEFAULT_SHIPPING_CONFIG, ...(rawShip || {}) };
       } else if (settings[key] !== undefined && settings[key] !== null && settings[key] !== '') {
         merged[key] = settings[key];
       }
     });
     merged.id = settings.id;
-  } else if (store.sitePaymentConfig) {
-    merged.payment_config = normalizePaymentConfig(store.sitePaymentConfig, DEFAULT_PAYMENT_CONFIG);
+  } else if (store.sitePaymentConfig || store.shippingConfig) {
+    if (store.sitePaymentConfig) {
+      merged.payment_config = normalizePaymentConfig(store.sitePaymentConfig, DEFAULT_PAYMENT_CONFIG);
+    }
+    if (store.shippingConfig) {
+      merged.shipping_config = { ...v4Store.DEFAULT_SHIPPING_CONFIG, ...store.shippingConfig };
+    }
   }
   if (!merged.surat_perjanjian_file_url && store.agreementFileUrl) {
     merged.surat_perjanjian_file_url = store.agreementFileUrl;
@@ -259,6 +268,9 @@ async function formatProducts(products, userId) {
       paymentOptions.cod_locations ||
       DEFAULT_PAYMENT_CONFIG.cod_locations;
 
+    const defaultStok = product.status === 'sold' ? 0 : 1;
+    const stok = product.stok !== undefined ? product.stok : v4Store.getProductStok(product.id, defaultStok);
+
     return {
       id: product.id,
       seller_id: product.seller_id || null,
@@ -277,7 +289,9 @@ async function formatProducts(products, userId) {
       cod_lokasi: codLokasi,
       cod_lokasi_custom: customCod,
       payment_options: paymentOptions,
-      status: product.status,
+      stok: Number(stok),
+      quantity: Number(stok),
+      status: Number(stok) <= 0 && product.status !== 'pending' ? 'sold' : product.status,
       tanggal_dibuat: product.tanggal_dibuat,
       tanggal_diperbarui: product.tanggal_diperbarui,
       dilihat: product.dilihat,

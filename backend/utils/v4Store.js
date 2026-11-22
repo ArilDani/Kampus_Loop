@@ -9,11 +9,22 @@ const DATA_DIR = process.env.VERCEL
 const BUNDLED_STORE_PATH = path.join(BUNDLED_DATA_DIR, 'v4_store.json');
 const STORE_PATH = path.join(DATA_DIR, 'v4_store.json');
 
+const DEFAULT_SHIPPING_CONFIG = {
+  base_rate: 5000,
+  rate_per_km: 2000,
+  min_shipping_cost: 8000,
+  courier_name: 'KampusLoop Express (Kurir Kampus)',
+  provider: 'distance_matrix',
+  active: true,
+};
+
 const EMPTY_STORE = {
   sitePaymentConfig: null,
   agreementFileUrl: null,
+  shippingConfig: null,
   sellerPayments: {},
   productCod: {},
+  productStok: {},
   userAddresses: {},
   orderExtras: {},
 };
@@ -31,8 +42,10 @@ function readStore() {
     return {
       sitePaymentConfig: parsed.sitePaymentConfig || null,
       agreementFileUrl: parsed.agreementFileUrl ?? null,
+      shippingConfig: parsed.shippingConfig || null,
       sellerPayments: parsed.sellerPayments || {},
       productCod: parsed.productCod || {},
+      productStok: parsed.productStok || {},
       userAddresses: parsed.userAddresses || {},
       orderExtras: parsed.orderExtras || {},
     };
@@ -70,6 +83,17 @@ function setSitePaymentConfig(cfg) {
   writeStore(store);
 }
 
+function setShippingConfig(cfg) {
+  const store = readStore();
+  store.shippingConfig = { ...DEFAULT_SHIPPING_CONFIG, ...(store.shippingConfig || {}), ...cfg };
+  writeStore(store);
+}
+
+function getShippingConfig() {
+  const store = readStore();
+  return { ...DEFAULT_SHIPPING_CONFIG, ...(store.shippingConfig || {}) };
+}
+
 function setAgreementFileUrl(url) {
   const store = readStore();
   store.agreementFileUrl = url;
@@ -96,6 +120,22 @@ function setProductCod(productId, codLokasi) {
   writeStore(store);
 }
 
+function setProductStok(productId, stok) {
+  const store = readStore();
+  if (stok === null || stok === undefined) {
+    delete store.productStok[String(productId)];
+  } else {
+    store.productStok[String(productId)] = Math.max(0, parseInt(stok, 10) || 0);
+  }
+  writeStore(store);
+}
+
+function getProductStok(productId, defaultVal = 1) {
+  const store = readStore();
+  const val = store.productStok[String(productId)];
+  return val !== undefined ? val : defaultVal;
+}
+
 function setUserAddress(userId, addr) {
   const store = readStore();
   if (addr === null) {
@@ -112,14 +152,45 @@ function setOrderExtras(orderId, extras) {
   writeStore(store);
 }
 
+function updateOrderExtras(orderId, partial) {
+  const store = readStore();
+  const existing = store.orderExtras[String(orderId)] || {};
+  store.orderExtras[String(orderId)] = { ...existing, ...partial };
+  writeStore(store);
+  return store.orderExtras[String(orderId)];
+}
+
+function addOrderHistory(orderId, entry) {
+  const store = readStore();
+  const key = String(orderId);
+  const existing = store.orderExtras[key] || {};
+  const history = Array.isArray(existing.history) ? [...existing.history] : [];
+  history.push({
+    action: entry.action || 'STATUS_UPDATE',
+    actor: entry.actor || 'system',
+    notes: entry.notes || '',
+    timestamp: new Date().toISOString(),
+    ...entry,
+  });
+  store.orderExtras[key] = { ...existing, history };
+  writeStore(store);
+  return history;
+}
+
 module.exports = {
+  DEFAULT_SHIPPING_CONFIG,
   readStore,
   isMissingColumnError,
   setSitePaymentConfig,
+  setShippingConfig,
+  getShippingConfig,
   setAgreementFileUrl,
   setSellerPayment,
   setProductCod,
+  setProductStok,
+  getProductStok,
   setUserAddress,
   setOrderExtras,
+  updateOrderExtras,
+  addOrderHistory,
 };
-
